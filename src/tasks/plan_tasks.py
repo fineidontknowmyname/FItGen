@@ -1,32 +1,3 @@
-"""
-tasks/plan_tasks.py
--------------------
-.. deprecated::
-    This module is DEPRECATED and must NOT be imported by new code.
-
-    The canonical Celery application is ``workers.celery_app`` and the
-    canonical task module is ``workers.tasks``.  Importing this module
-    creates a *second*, disconnected Celery app (name ``"koda"``) whose
-    task is registered as ``tasks.generate_plan``, while the worker only
-    consumes tasks registered as ``workers.generate_plan``.  Using this
-    module will silently queue jobs that are **never consumed**.
-
-    Migration
-    ---------
-    Replace any import of this module::
-
-        # OLD (broken)
-        from tasks.plan_tasks import celery_app, generate_plan_task
-
-        # NEW (correct)
-        from workers.celery_app import celery_app
-        from workers.tasks import generate_plan_task
-
-    Worker startup (canonical)::
-
-        celery -A workers.celery_app worker --loglevel=info
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -37,11 +8,6 @@ from celery import Celery
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
-
-# ── Celery application ────────────────────────────────────────────────────────
-# Import settings lazily inside the task to avoid circular imports at module
-# load time; the broker URL below is evaluated once when the module is first
-# imported.
 
 def _make_celery() -> Celery:
     try:
