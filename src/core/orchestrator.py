@@ -1,25 +1,3 @@
-"""
-core/orchestrator.py
---------------------
-End-to-end plan generation pipeline.
-
-Sync entry-point  → ``generate_plan(...)``  (coroutine, returns FitnessPlan)
-Async entry-point → ``generate_plan_async(request)``  (returns JobResponse,
-                    dispatches to Celery worker)
-
-Pipeline stages
-───────────────
-  0. Resolve transcripts  — fetch multi-URL YouTube transcripts concurrently
-  1. Classify videos      — Gemini labels each URL: workout|diet|motivation|general
-  2. Extract exercises    — Gemini extracts ExerciseLibrary from workout transcripts
-  3. Safety filter        — drop exercises that conflict with injuries / missing equipment
-  4. Capacity score       — enriched by activity hours + BMI + muscle level (new capacity engine)
-  5. BodyMetrics          — compute BMR / TDEE / macros from UserProfile
-  6. Diet pipeline        — Gemini extracts diet guidance from diet-classified transcripts
-  7. Build template       — round-robin exercise distribution across Mon / Wed / Fri
-  8. Apply progression    — 4-week progressive overload via ProgressionEngine
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -85,22 +63,6 @@ _GOAL_DELTA: dict[str, float] = {
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 class PlanOrchestrator:
-    """
-    Coordinates all pipeline stages to produce a complete FitnessPlan.
-
-    Usage (sync / test)
-    -------------------
-    plan = await plan_orchestrator.generate_plan(
-        user_profile   = ...,
-        youtube_urls   = ["https://youtu.be/..."],
-        transcript_text = None,
-    )
-
-    Usage (async / HTTP)
-    --------------------
-    job = await plan_orchestrator.generate_plan_async(request)
-    # → JobResponse(job_id=..., status=pending)
-    """
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -113,36 +75,7 @@ class PlanOrchestrator:
         transcript_text: Optional[str] = None,
         body_composition: Optional[BodyComposition] = None,
     ) -> FitnessPlan:
-        """
-        Full pipeline. Returns a complete FitnessPlan.
-
-        Three operating modes
-        ─────────────────────
-        MODE A — Profile only (no URLs, no photos)
-            youtube_urls is empty/None AND transcript_text is None.
-            Exercises come from the built-in default_exercises library.
-            Diet notes summarise goal-appropriate nutrition principles.
-            No Ollama calls are made.
-
-        MODE B — Profile + YouTube (no photos)
-            One or more youtube_urls (or a transcript_text) are supplied.
-            Exercises and diet notes are LLM-extracted from video transcripts.
-            body_composition is None — capacity engine runs without vision bonus.
-
-        MODE C — Profile + YouTube + Photos
-            Same as Mode B, but body_composition is provided from a prior
-            /vision/analyze-body call.  CapacityEngine applies the muscle-level
-            and SWR bonuses for personalised volume scaling.
-
-        Parameters
-        ----------
-        user_profile         Validated UserProfile (biometrics, metrics, goals …).
-        youtube_urls         Zero or more YouTube URLs (modes B / C).
-        workout_youtube_urls Categorised YouTube URLs for workout videos.
-        diet_youtube_urls    Categorised YouTube URLs for diet videos.
-        transcript_text      Pre-fetched transcript text (supplements or replaces URLs).
-        body_composition     Optional vision result for Mode C enrichment.
-        """
+        
         youtube_urls = youtube_urls or []
         workout_youtube_urls = workout_youtube_urls or []
         diet_youtube_urls = diet_youtube_urls or []
@@ -274,14 +207,7 @@ class PlanOrchestrator:
         )
 
     async def generate_plan_async(self, request: GeneratePlanRequest) -> JobResponse:
-        """
-        Dispatch plan generation to a Celery worker and return immediately.
-
-        Returns
-        -------
-        JobResponse
-            Contains the Celery ``job_id`` and ``status=pending``.
-        """
+       
         from workers.tasks import generate_plan_task  # deferred — Celery optional
 
         task = generate_plan_task.delay(request.model_dump())
@@ -303,16 +229,7 @@ class PlanOrchestrator:
         transcript_text: Optional[str],
         body_composition: Optional[BodyComposition],
     ) -> str:
-        """
-        Determine operating mode based on available inputs.
-
-        Returns
-        -------
-        "A"  — profile only (no video content, no photos)
-        "B"  — profile + YouTube (+ optional photos ignored here; body_comp is a
-                separate concern handled by capacity_engine)
-        "C"  — profile + YouTube + body_composition from vision API
-        """
+        
         has_content = bool(youtube_urls) or bool(transcript_text)
         if not has_content:
             return "A"
@@ -323,10 +240,7 @@ class PlanOrchestrator:
     # ── Mode-A fallbacks ───────────────────────────────────────────────────────
 
     def _default_exercise_pool(self, user_profile: UserProfile) -> list:
-        """
-        Return exercises from the static library, safety-filtered for
-        the user's injuries and equipment.
-        """
+       
         from core.default_exercises import get_default_exercises
         return get_default_exercises(
             goal=user_profile.fitness_goal,
@@ -338,10 +252,7 @@ class PlanOrchestrator:
 
     @staticmethod
     def _default_diet_notes(user_profile: UserProfile) -> str:
-        """
-        Return goal-appropriate diet notes without any LLM call.
-        Used in Mode A when there are no video transcripts to extract from.
-        """
+        
         _NOTES: dict[str, str] = {
             "weight_loss": (
                 "• Aim for a 300–500 kcal daily deficit relative to your TDEE.\n"
@@ -393,25 +304,13 @@ class PlanOrchestrator:
     async def _fetch_transcripts(
         self, urls: List[str]
     ) -> dict[str, str]:
-        """
-        Concurrently fetch transcripts for every URL via youtube_service.fetch_many.
-
-        The token guard (12 000 chars) is applied inside fetch_many so each
-        transcript is already budget-safe when it arrives here.
-        Returns a dict mapping url → transcript_text; failed URLs are skipped.
-        """
+       
         return await youtube_service.fetch_many(urls, skip_failed=True)
 
     async def _classify_videos(
         self, url_transcript_map: dict[str, str]
     ) -> dict[str, str]:
-        """
-        Ask Gemini to classify each transcript as one of:
-        workout | diet | motivation | general
-
-        Returns a dict mapping ``url → label``.
-        Falls back to ``"general"`` on error.
-        """
+       
         if not url_transcript_map:
             return {}
 
@@ -436,10 +335,7 @@ class PlanOrchestrator:
         label: str,
         fallback: Optional[str] = None,
     ) -> Optional[str]:
-        """
-        Concatenate transcripts for URLs that match ``label``.
-        Returns ``fallback`` when no URLs match.
-        """
+       
         parts = [
             url_transcript_map[url]
             for url, lbl in classifications.items()
@@ -452,10 +348,7 @@ class PlanOrchestrator:
     def _compute_body_metrics(
         self, user_profile: UserProfile, capacity_score: float
     ) -> BodyMetrics:
-        """
-        Derive TDEE, macros, and ideal weight from UserProfile using
-        Mifflin-St Jeor BMR + PAL factor.
-        """
+       
         bio  = user_profile.biometrics
         goal = user_profile.fitness_goal.value
 
@@ -514,10 +407,7 @@ class PlanOrchestrator:
         )
 
     async def _extract_diet_guidance(self, diet_text: str) -> str:
-        """
-        Ask Gemini to extract actionable diet guidance from diet-classified
-        video transcripts.  Returns a plain-English summary string.
-        """
+        
         snippet = diet_text[:30000]
         prompt = (
             "You are a certified nutritionist reviewing a fitness video transcript.\n"
@@ -533,10 +423,7 @@ class PlanOrchestrator:
             return ""
 
     def _build_base_week(self, safe_exercises: list) -> WeeklySchedule:
-        """
-        Distribute safe exercises across Monday / Wednesday / Friday using a
-        round-robin chunk.  Each exercise gets 3 × 10-rep sets to start.
-        """
+        
         days = ["Monday", "Wednesday", "Friday"]
         chunk_size = max(1, len(safe_exercises) // 3)
         sessions: List[WorkoutSession] = []
@@ -560,16 +447,7 @@ class PlanOrchestrator:
 
     @staticmethod
     def _build_roadmap(base_weekly_plan: WeeklyPlan, user_profile: UserProfile) -> TransformationRoadmap:
-        """
-        Build a 4-phase 13-week TransformationRoadmap from the structured weekly plan.
-
-        Phases
-        ------
-        Phase 1 — Foundation       Weeks 1-4  : base template, +1 rep/exercise/week
-        Phase 2 — Development      Weeks 5-8  : +1 set on compounds, 1 more accessory
-        Phase 3 — Intensification  Weeks 9-12 : drop sets on last set, 2nd cardio day
-        Phase 4 — Deload           Week 13    : 40% weight reduction, same exercises
-        """
+       
         from copy import deepcopy
         goal = user_profile.fitness_goal.value
 
