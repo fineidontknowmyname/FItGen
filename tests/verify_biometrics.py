@@ -25,11 +25,6 @@ def verify_biometrics():
         fitness_goal=FitnessGoal.muscle_gain
     )
     
-    # 2. Setup Mock Landmarks (Normalized Coordinates)
-    # Simulate standing pose
-    # Height in pixels (y-axis): Let's say range 0.1 to 0.9 = 0.8 units height
-    # Scale: 0.8 units = 180cm -> 1 unit = 225cm
-    
     # Shoulders (Wide)
     l_shoulder = Landmark(x=0.6, y=0.2, z=0.0, visibility=1.0)
     r_shoulder = Landmark(x=0.4, y=0.2, z=0.0, visibility=1.0)
@@ -39,25 +34,6 @@ def verify_biometrics():
     l_hip = Landmark(x=0.55, y=0.5, z=0.0, visibility=1.0)
     r_hip = Landmark(x=0.45, y=0.5, z=0.0, visibility=1.0)
     # Width = 0.1 units. cm = 0.1 * 225 = 22.5cm
-    
-    # Waist (Calculated Midpoint)
-    # Midpoint Y = (0.2 + 0.5) / 2 = 0.35
-    # Midpoint X Left = (0.6 + 0.55) / 2 = 0.575
-    # Midpoint X Right = (0.4 + 0.45) / 2 = 0.425
-    # Waist Width = 0.15 units. cm = 0.15 * 225 = 33.75cm
-    # Waist Circumference = 33.75 * 3.14 = ~106cm (Quite large, high BF expected)
-
-    # Ankles (For height calc)
-    # Mid Shoulder Y = 0.2
-    # Mid Ankle Y = 0.9 (0.7 distance)
-    # Height used in logic = 0.7 units. 
-    # BUT wait, we hardcoded logic: pixels_per_cm = apparent_height_px / user_height_cm
-    # apparent_height = 0.7
-    # pixels_per_cm = 0.7 / 180 = 0.00388
-    
-    # Shoulder cm = 0.2 / 0.00388 = 51.4cm
-    # Hip cm = 0.1 / 0.00388 = 25.7cm
-    # V-Taper = 51.4 / 25.7 = 2.0
     
     l_ankle = Landmark(x=0.55, y=0.9, z=0.0, visibility=1.0)
     r_ankle = Landmark(x=0.45, y=0.9, z=0.0, visibility=1.0)
