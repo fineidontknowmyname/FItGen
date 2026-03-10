@@ -18,9 +18,9 @@ def verify_vision():
     landmarks = landmark_detector.detect(blank_image)
     
     if landmarks is None:
-        print("✅ Correctly returned None for blank image (no pose).")
+        print("OK, Correctly returned None for blank image (no pose).")
     else:
-        print("❓ Unexpectedly found landmarks in blank image.")
+        print("? Unexpectedly found landmarks in blank image.")
 
     # 2. Test Fitness Engine (Angle Calculation)
     print("\nTesting FitnessEngine (Geometry)...")
@@ -34,24 +34,19 @@ def verify_vision():
     print(f"Calculated Angle (Expected 90.0): {angle}")
     
     if abs(angle - 90.0) < 0.1:
-        print("✅ Angle calculation accurate.")
+        print("OK, Angle calculation accurate.")
     else:
-        print("❌ Angle calculation failed.")
+        print("X, Angle calculation failed.")
 
     # 3. Test Fitness Engine (Form Analysis - Squat)
     print("\nTesting FitnessEngine (Squat Logic)...")
-    # Simulate a squat with deep knee bend (Angle < 80)
-    # Hip, Knee, Ankle
+ 
     hip = Landmark(x=0.5, y=0.5, z=0.0, visibility=0.9)
     knee = Landmark(x=0.6, y=0.8, z=0.0, visibility=0.9)
-    # To get < 80 degrees, place ankle carefully. 
-    # Let's just trust the logic if angle calcs work, but we can test the function call.
-    
-    # Construct a list of 33 dummy landmarks (MediaPipe Pose has 33)
+   
     dummy_landmarks = [Landmark(x=0.0, y=0.0, z=0.0, visibility=0.0) for _ in range(33)]
     
-    # Set key landmarks for squat (Right side: 24, 26, 28)
-    # Let's set them to form a 90 degree angle
+   
     dummy_landmarks[24] = a # Hip
     dummy_landmarks[26] = b # Knee
     dummy_landmarks[28] = c # Ankle
@@ -60,9 +55,9 @@ def verify_vision():
     print(f"Squat Analysis Result: {result}")
     
     if "metrics" in result and "knee_angle" in result["metrics"]:
-        print("✅ Form analysis returned metrics.")
+        print("OK, Form analysis returned metrics.")
     else:
-        print("❌ Form analysis missing metrics.")
+        print("X, Form analysis missing metrics.")
 
 if __name__ == "__main__":
     verify_vision()
