@@ -1,17 +1,3 @@
-"""
-tests/verify_orchestrator.py
------------------------------
-Smoke-test for the rewritten PlanOrchestrator.
-
-Verifies (without a real Gemini API key or Redis broker):
-  1. PlanOrchestrator can be imported and instantiated
-  2. _compute_body_metrics returns a valid BodyMetrics with sane TDEE
-  3. _classify_videos gracefully returns 'general' on network/API failure
-  4. generate_plan_async raises ImportError (no Celery broker) OR returns JobResponse
-
-Run from repo root:
-    python tests/verify_orchestrator.py
-"""
 
 import asyncio
 import sys
@@ -23,7 +9,7 @@ PASS = "\u2705"
 FAIL = "\u274c"
 WARN = "\u26a0\ufe0f"
 
-# ── helpers ────────────────────────────────────────────────────────────────────
+# ── helpers ───────
 
 def _make_user_profile():
     from schemas.user import UserProfile, UserMetrics, StrengthMetrics, PhysicalActivity
@@ -44,7 +30,7 @@ def _make_user_profile():
     )
 
 
-# ── test 1: import ─────────────────────────────────────────────────────────────
+# ── test 1: import ──────
 
 def test_import():
     print("Test 1 — Import PlanOrchestrator ...", end=" ")
@@ -58,7 +44,7 @@ def test_import():
         return None
 
 
-# ── test 2: _compute_body_metrics ─────────────────────────────────────────────
+# ── test 2: _compute_body_metrics ───────
 
 def test_body_metrics(orchestrator):
     print("Test 2 — _compute_body_metrics ...", end=" ")
@@ -115,7 +101,7 @@ async def test_generate_plan_async(orchestrator):
             print(FAIL, e)
 
 
-# ── runner ─────────────────────────────────────────────────────────────────────
+# ── runner ───
 
 async def main():
     print("=" * 55)
