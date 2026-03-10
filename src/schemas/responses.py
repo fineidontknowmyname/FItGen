@@ -1,15 +1,3 @@
-"""
-schemas/responses.py
---------------------
-Standardised HTTP response envelopes returned by all Koda API endpoints.
-
-Three dedicated response models are defined here:
-
-  • JobResponse            — immediate acknowledgement when an async job is queued
-  • JobStatusResponse      — polling response for a running / completed / failed job
-  • BodyCompositionResponse — result of the Gemini vision body-composition analysis
-"""
-
 from __future__ import annotations
 
 from typing import Any, Optional
