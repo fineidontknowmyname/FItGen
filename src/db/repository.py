@@ -1,27 +1,3 @@
-"""
-db/repository.py
------------------
-Data-access functions for fitness plan records.
-
-Design
-──────
-Thin functions (not a class) so they compose easily with both async FastAPI
-endpoints and synchronous Celery tasks.
-
-Async functions   → used by FastAPI endpoints (accept AsyncSession)
-Sync functions    → used by Celery tasks (accept Session from SessionLocal)
-
-Public API
-──────────
-    # async (FastAPI)
-    await save_plan_async(db, job_id, ...)
-    await get_plan_by_job_id_async(db, job_id)
-
-    # sync (Celery workers)
-    save_plan(job_id, ...)
-    get_plan_by_job_id(job_id)
-"""
-
 from __future__ import annotations
 
 import logging
@@ -52,12 +28,7 @@ async def save_plan_async(
     error_detail: str | None = None,
     youtube_urls: list[str] | None = None,
 ) -> FitnessPlanRecord:
-    """
-    Insert or update a FitnessPlanRecord row (async).
 
-    Creates the row if ``job_id`` does not exist yet, otherwise updates
-    only the supplied non-None fields.
-    """
     result = await db.execute(
         select(FitnessPlanRecord).where(FitnessPlanRecord.job_id == job_id)
     )
@@ -125,21 +96,7 @@ def save_plan(
     error_detail: str | None = None,
     youtube_urls: list[str] | None = None,
 ) -> FitnessPlanRecord:
-    """
-    Insert or update a FitnessPlanRecord row (synchronous, for Celery tasks).
-
-    Callers are responsible for acquiring a ``Session`` from
-    ``db.session.SessionLocal`` and committing after this call.
-
-    Example::
-
-        from db.session import SessionLocal
-        from db.repository import save_plan
-
-        with SessionLocal() as session:
-            save_plan(session, job_id=task_id, status="running")
-            session.commit()
-    """
+    
     row: FitnessPlanRecord | None = db.execute(
         select(FitnessPlanRecord).where(FitnessPlanRecord.job_id == job_id)
     ).scalar_one_or_none()
