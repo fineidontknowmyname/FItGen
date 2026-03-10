@@ -1,17 +1,3 @@
-"""
-tests/verify_swr.py
--------------------
-Unit-level verification of the SWR (Shoulder-to-Waist Ratio) feature.
-
-Tests:
-  1. SWRCategory enum values
-  2. BodyComposition SWR field defaults
-  3. calculate_shoulder_waist_ratio — ATHLETIC case
-  4. calculate_shoulder_waist_ratio — OVERFAT case
-  5. calculate_shoulder_waist_ratio — division-by-zero guard
-  6. CapacityEngine SWR adjustment for each category
-  7. swr_weight_multiplier for ATHLETIC vs others
-"""
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -27,10 +13,10 @@ def _check(label: str, condition: bool, detail: str = ""):
     global _PASS, _FAIL
     if condition:
         _PASS += 1
-        print(f"  ✅ {label}")
+        print(f" OK {label}")
     else:
         _FAIL += 1
-        print(f"  ❌ {label}  {detail}")
+        print(f"  X {label}  {detail}")
 
 
 def test_enum():
