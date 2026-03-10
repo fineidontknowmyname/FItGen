@@ -1,27 +1,3 @@
-"""
-core/default_meals.py
-----------------------
-Static meal library used as a fallback when no YouTube URLs are provided
-(Mode A — profile-only plan generation, no LLM diet extraction).
-
-35 meals cover all eating slots (breakfast / morning snack / lunch /
-afternoon snack / dinner), multiple dietary restriction tags, and a
-range of calorie levels (low / medium / high).
-
-Every entry is a ``MealItem`` dataclass — the same type accepted by the
-existing ``MealSelectorEngine.select()`` — so no other code changes are
-needed to consume this pool.
-
-Public API
-──────────
-get_default_meal_pool(
-    calorie_target: float,
-    restrictions:   List[str] = [],
-) -> List[MealItem]
-
-Returns the full meal library filtered by dietary restrictions.  The
-``MealSelectorEngine`` then handles slot assignment and portion scaling.
-"""
 
 from __future__ import annotations
 
@@ -343,21 +319,7 @@ def get_default_meal_pool(
     calorie_target: float,
     restrictions: List[str] | None = None,
 ) -> List[MealItem]:
-    """
-    Return the default meal pool filtered by the user's dietary restrictions.
-
-    Parameters
-    ----------
-    calorie_target  Daily calorie target from TDEE computation.
-                    Used for logging only here — the MealSelectorEngine does
-                    the actual calorie-matching and portion scaling.
-    restrictions    List of restriction *string* values (e.g. ``["vegan"]``).
-                    Matching is case-insensitive and tolerant of unknown values.
-
-    Returns
-    -------
-    List[MealItem] — ready for ``meal_selector.select()``.
-    """
+   
     import logging
     log = logging.getLogger(__name__)
 
