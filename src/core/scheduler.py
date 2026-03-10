@@ -1,40 +1,3 @@
-﻿"""
-core/scheduler.py
------------------
-Split-based workout scheduler.
-
-Replaces the hardcoded Monday / Wednesday / Friday round-robin in the
-orchestrator with a configurable template that distributes scored exercises
-across named training days according to the chosen split style.
-
-Supported splits
-â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  FULL_BODY       3 days/week â€” each day trains every major muscle group.
-  UPPER_LOWER     4 days/week â€” alternates upper-body and lower-body days.
-  PUSH_PULL_LEGS  6 days/week (classic PPL) â€” push / pull / legs each twice.
-  CUSTOM          Caller provides an explicit list of DayTemplate objects.
-
-How sessions are built
-â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-1. Exercises are pre-sorted by ExerciseScorer (caller should pass scored list)
-2. Each DayTemplate declares which ``muscle_focus`` tags it targets.
-3. Exercises whose ``muscles_worked`` contains any focus tag are routed to that
-   day; remaining exercises are distributed round-robin.
-4. Session duration is derived from exercise count and a per-set time estimate,
-   then soft-capped by ``max_session_min``.
-5. Capacity score scales the starting sets structure within each session.
-
-Public API
-â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-scheduler.build_base_week(
-    scored_exercises, user_profile, split=SplitType.FULL_BODY,
-    capacity_score=1.0, custom_days=None
-) -> WeeklySchedule
-
-scheduler.build_weekly_plan(
-    scored_exercises, experience_level, capacity_score=1.0
-) -> WeeklyPlan   (7 DailyWorkout objects â€” full structured plan)
-"""
 
 from __future__ import annotations
 
@@ -51,12 +14,6 @@ from schemas.content import (
 from schemas.plan import WeeklySchedule, WorkoutSession, WorkoutExercise, WorkoutSet
 from schemas.common import ExperienceLevel
 
-# ScoredExercise is imported lazily to avoid circular import chains â€”
-# the scheduler only needs .exercise from a ScoredExercise.
-
-
-# â”€â”€ Split types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 class SplitType(str, Enum):
     full_body       = "full_body"
     upper_lower     = "upper_lower"
@@ -64,29 +21,15 @@ class SplitType(str, Enum):
     custom          = "custom"
 
 
-# â”€â”€ Day template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
 class DayTemplate:
-    """
-    Blueprint for a single training day.
-
-    Attributes
-    ----------
-    day_name        Human-readable name, e.g. "Monday", "Push Day".
-    muscle_focus    Muscle-group keywords to route exercises to this day.
-                    Case-insensitive substring match against muscles_worked.
-                    Empty â†’ accepts any exercise (used for full-body days).
-    max_exercises   Hard cap on exercises per session.
-    is_rest         If True this day is a rest day (no exercises assigned).
-    """
+    
     day_name:      str
     muscle_focus:  List[str] = field(default_factory=list)
     max_exercises: int = 6
     is_rest:       bool = False
 
-
-# â”€â”€ Built-in split templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _FULL_BODY_DAYS: list[DayTemplate] = [
     DayTemplate("Monday",    muscle_focus=[], max_exercises=7),
@@ -124,7 +67,7 @@ _SPLIT_TEMPLATES: dict[SplitType, list[DayTemplate]] = {
     SplitType.push_pull_legs: _PUSH_PULL_LEGS_DAYS,
 }
 
-# â”€â”€ Per-set time estimates (seconds) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 _SECONDS_PER_SET = 45      # avg work time
 _REST_PER_SET    = 60      # avg rest between sets
@@ -132,15 +75,12 @@ _TIME_PER_SET    = (_SECONDS_PER_SET + _REST_PER_SET) / 60   # â†’ 1.75 min
 
 _MAX_SESSION_MIN = 90      # hard ceiling regardless of exercise count
 
-# â”€â”€ Sets-per-exercise by experience level â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _SETS_BY_LEVEL: dict[ExperienceLevel, int] = {
     ExperienceLevel.beginner:     2,
     ExperienceLevel.intermediate: 3,
     ExperienceLevel.advanced:     4,
 }
-
-# â”€â”€ Default Upper/Lower exercise blueprints (used when library is thin) â”€â”€â”€â”€â”€â”€â”€
 
 _DEFAULT_UPPER_STRENGTH = [
     ("Bench Press",          "Chest",     "Drive feet into floor and arch your upper back slightly."),
@@ -177,17 +117,7 @@ _DEFAULT_LOWER_HYPERTROPHY = [
 ]
 
 
-# â”€â”€ Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 class SchedulerEngine:
-    """
-    Build a WeeklySchedule from a ranked exercise list and a split template.
-
-    The scheduler is the single source of truth for:
-    - which day gets which exercises (via muscle-focus routing)
-    - how many sets per exercise (from experience level + capacity nudge)
-    - session duration estimate
-    """
 
     def build_base_week(
         self,
@@ -197,25 +127,7 @@ class SchedulerEngine:
         capacity_score: float = 1.0,
         custom_days: Optional[List[DayTemplate]] = None,
     ) -> WeeklySchedule:
-        """
-        Parameters
-        ----------
-        scored_exercises
-                    Best-first ranked exercises (ScoredExercise or plain
-                    Exercise objects; the .exercise attribute is used when
-                    present, otherwise the object itself is treated as Exercise).
-        experience_level
-                    Determines the baseline sets-per-exercise.
-        split       Split style; ignored when custom_days is provided.
-        capacity_score
-                    CapacityEngine output [0.50, 1.50] â€” adds up to +1 extra
-                    set for very advanced users (score â‰¥ 1.30).
-        custom_days List of DayTemplate objects when split=CUSTOM.
-
-        Returns
-        -------
-        WeeklySchedule  week_number=1 base week ready for ProgressionEngine.
-        """
+        
         exercises = self._unwrap(scored_exercises)
 
         if split == SplitType.custom or custom_days is not None:
@@ -298,22 +210,7 @@ class SchedulerEngine:
         experience_level: ExperienceLevel,
         capacity_score: float = 1.0,
     ) -> WeeklyPlan:
-        """
-        Build a structured 7-day WeeklyPlan for a 4-day Upper/Lower split.
-
-        Day layout
-        â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Day 1 â€” Upper Body (Strength)      4 Ã— 4-6 reps, 180 s rest
-        Day 2 â€” Lower Body (Strength)      4 Ã— 4-6 reps, 180 s rest
-        Day 3 â€” Rest / Active Recovery     no exercises
-        Day 4 â€” Upper Body (Hypertrophy)   3-4 Ã— 8-12 reps, 90 s rest
-        Day 5 â€” Lower Body (Hypertrophy)   3-4 Ã— 8-12 reps, 90 s rest
-        Day 6 â€” Cardio (LISS)              no exercises
-        Day 7 â€” Full Rest                  no exercises
-
-        Exercises are cherry-picked from the scored library when available;
-        defaults are used to fill any gaps.
-        """
+        
         exercises = self._unwrap(scored_exercises)
 
         # Capacity nudge: advanced users get 4 sets on hypertrophy days
@@ -427,11 +324,8 @@ class SchedulerEngine:
 
         return WeeklyPlan(days=days, repeat_for_weeks=4)
 
-    # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     @staticmethod
     def _unwrap(scored_exercises: Sequence) -> List[Exercise]:
-        """Accept both ScoredExercise wrappers and plain Exercise objects."""
         result = []
         for item in scored_exercises:
             if hasattr(item, "exercise"):
@@ -460,10 +354,7 @@ class SchedulerEngine:
         rest: int,
         rationale: str,
     ) -> List[ScheduledExercise]:
-        """
-        Build a list of ScheduledExercise objects.
-        Prefers exercises from the library; falls back to defaults for gaps.
-        """
+        
         result: List[ScheduledExercise] = []
         used_names: set = set()
 
@@ -518,10 +409,6 @@ class SchedulerEngine:
 
     @staticmethod
     def _matches_focus(ex: Exercise, focus_tags: List[str]) -> bool:
-        """
-        True iff any muscle in the exercise overlaps with the day's focus tags
-        (case-insensitive substring match).
-        """
         muscles = [m.lower() for m in getattr(ex, "muscles_worked", [])]
         for tag in focus_tags:
             tag_lower = tag.lower()
@@ -531,10 +418,6 @@ class SchedulerEngine:
 
     @staticmethod
     def _estimate_duration(n_exercises: int, sets_per_ex: int) -> int:
-        """
-        Estimate session duration in whole minutes, capped at _MAX_SESSION_MIN.
-        Adds a 10-min warm-up/cool-down buffer.
-        """
         total_sets = n_exercises * sets_per_ex
         raw_min    = total_sets * _TIME_PER_SET + 10   # 10 min buffer
         return max(5, min(_MAX_SESSION_MIN, int(raw_min)))
