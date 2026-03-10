@@ -11,11 +11,6 @@ from schemas.plan import JobStatus
 # ── Async Job Responses ────────────────────────────────────────────────────────
 
 class JobResponse(BaseModel):
-    """
-    Returned immediately (HTTP 202) when an async plan-generation job is
-    dispatched to Celery.  The client should store ``job_id`` and start
-    polling ``GET /plans/job/{job_id}``.
-    """
 
     job_id: str = Field(
         description="Celery task ID — use this to poll for results"
@@ -31,15 +26,7 @@ class JobResponse(BaseModel):
 
 
 class JobStatusResponse(BaseModel):
-    """
-    Returned by ``GET /plans/job/{job_id}`` while polling for an async job.
-
-    * ``status == 'pending'``  → job is queued but not yet started
-    * ``status == 'running'``  → worker is actively processing
-    * ``status == 'done'``     → ``result`` contains the serialised FitnessPlan
-    * ``status == 'failed'``   → ``error`` contains the failure detail
-    """
-
+    
     job_id: str = Field(description="Celery task ID")
     status: JobStatus = Field(description="Current state of the async job")
     result: Optional[Any] = Field(
