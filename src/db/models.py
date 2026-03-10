@@ -1,23 +1,3 @@
-"""
-db/models.py
--------------
-SQLAlchemy ORM models for Koda.
-
-Tables
-──────
-user_records         Authenticated user account + profile blob
-user_profiles        Legacy profile table (backward compat — kept for existing rows)
-fitness_plan_records Generated fitness plans linked to a user + Celery job
-
-Design choices
-──────────────
-* Rich nested schemas (UserProfile, FitnessPlan) are stored as JSON blobs.
-  This avoids a large migration burden when the Pydantic schema evolves and
-  keeps all business logic in Python / Pydantic, not in SQL constraints.
-* Timestamps use server_default=func.now() so they are set by the DB,
-  not by the Python process clock (avoids timezone drift in multi-worker env).
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -40,13 +20,7 @@ from src.db.base import Base
 # ── User account record ────────────────────────────────────────────────────────
 
 class UserRecord(Base):
-    """
-    Authenticated user account.
-
-    ``profile_json`` stores the full ``UserProfile.model_dump()`` so the
-    Pydantic schema can evolve without DB migrations.
-    """
-
+   
     __tablename__ = "user_records"
 
     id           = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -94,12 +68,6 @@ class UserRecord(Base):
 # ── Fitness plan record ────────────────────────────────────────────────────────
 
 class FitnessPlanRecord(Base):
-    """
-    A generated fitness plan tied to a user and a Celery job.
-
-    ``plan_json`` stores ``FitnessPlan.model_dump()``; status tracks the
-    async Celery pipeline so the poll endpoint can reflect progress.
-    """
 
     __tablename__ = "fitness_plan_records"
 
