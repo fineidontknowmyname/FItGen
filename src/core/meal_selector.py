@@ -1,35 +1,3 @@
-"""
-core/meal_selector.py
----------------------
-Fill a day's meal slots with meals drawn from a pool such that:
-  1. The total daily calories land within a configurable tolerance of the target.
-  2. All selected meals pass the user's dietary restriction rules.
-  3. Slots are filled greedily in priority order (largest-calorie slots first).
-
-Concepts
-────────
-MealSlot     One named eating occasion (e.g. "Breakfast") with a calorie
-             budget expressed as a fraction of the daily target.
-
-MealItem     A single selectable meal with a name, kcal value, macro hint,
-             and a set of restriction tags it is SAFE for (e.g. "vegan",
-             "gluten_free").
-
-DietaryRestriction
-             Enum of common dietary rules.  A meal is eligible iff it carries
-             a tag matching every restriction the user has declared.
-
-DailyPlan    The output — an ordered list of (slot, meal) pairs with the
-             total achieved calorie count.
-
-Public API
-──────────
-meal_selector.select(
-    meal_pool, restrictions, calorie_target,
-    slots=DEFAULT_SLOTS, tolerance=0.05
-) -> DailyPlan
-"""
-
 from __future__ import annotations
 
 import random
@@ -56,17 +24,7 @@ class DietaryRestriction(str, Enum):
 
 @dataclass(frozen=True)
 class MealSlot:
-    """
-    A named eating occasion and its share of the daily calorie budget.
-
-    Attributes
-    ----------
-    name            Human-readable slot name, e.g. "Breakfast".
-    calorie_fraction
-                    Fraction of the daily calorie target assigned to this slot.
-                    All fractions in a slot list should sum to 1.0.
-    is_snack        Snack slots accept smaller / lighter meal items.
-    """
+    
     name:             str
     calorie_fraction: float
     is_snack:         bool = False
@@ -87,20 +45,7 @@ DEFAULT_SLOTS: list[MealSlot] = [
 
 @dataclass
 class MealItem:
-    """
-    A single selectable meal / food option.
-
-    Attributes
-    ----------
-    name                Display name (e.g. "Grilled Chicken & Rice").
-    kcal                Approximate kilocalories per serving.
-    protein_g           Protein per serving in grams (optional hint).
-    carbs_g             Carbohydrates per serving in grams (optional hint).
-    fat_g               Fat per serving in grams (optional hint).
-    restriction_tags    Set of DietaryRestriction values this meal is SAFE for.
-                        An empty set means the meal has no restriction-safe tags
-                        and will be filtered out if the user has any restriction.
-    """
+   
     name:             str
     kcal:             float
     protein_g:        float = 0.0
@@ -109,10 +54,7 @@ class MealItem:
     restriction_tags: set[DietaryRestriction] = field(default_factory=set)
 
     def is_eligible(self, restrictions: Sequence[DietaryRestriction]) -> bool:
-        """
-        Return True iff this meal satisfies ALL of the user's restrictions.
-        A meal with no restriction tags fails if any restriction is declared.
-        """
+       
         if not restrictions:
             return True
         return all(r in self.restriction_tags for r in restrictions)
@@ -159,19 +101,7 @@ class DailyPlan:
 # ── Engine ─────────────────────────────────────────────────────────────────────
 
 class MealSelectorEngine:
-    """
-    Greedily fill each MealSlot with an eligible meal from the pool.
-
-    Strategy
-    ────────
-    1. Compute the calorie budget for each slot.
-    2. For each slot (processed largest-budget-first to reduce leftover):
-       a. Filter pool to eligible meals (pass restriction check).
-       b. Find the closest-calorie meal within [budget × (1−tol), budget × (1+tol)].
-       c. Scale the portion to hit the slot budget exactly if no exact match.
-       d. If still no eligible meal exists, mark the slot as unfilled.
-    3. Return a DailyPlan with totals and gap indicators.
-    """
+    
 
     def select(
         self,
@@ -183,22 +113,7 @@ class MealSelectorEngine:
         shuffle_pool: bool = True,
         seed: Optional[int] = None,
     ) -> DailyPlan:
-        """
-        Parameters
-        ----------
-        meal_pool       All available meal items to choose from.
-        restrictions    User's dietary restrictions (can be empty).
-        calorie_target  Total daily calorie goal (from TDEEEngine).
-        slots           Meal slot schedule; defaults to DEFAULT_SLOTS.
-        tolerance       Max fractional deviation from slot budget accepted
-                        without scaling.  0.05 → ±5 %.
-        shuffle_pool    Shuffle the pool before selection to add variety.
-        seed            Random seed for reproducibility in tests.
-
-        Returns
-        -------
-        DailyPlan with all selections.
-        """
+       
         if slots is None:
             slots = DEFAULT_SLOTS
 
@@ -268,14 +183,7 @@ class MealSelectorEngine:
         tolerance: float,
         used_names: set[str],
     ) -> Optional[MealItem]:
-        """
-        Find the closest-calorie eligible meal to ``budget``.
-
-        Priority:
-          1. Exact / within-tolerance match not yet used today.
-          2. Any unused match (will be portion-scaled).
-          3. Any match including already-used meals (last resort).
-        """
+        
         unused = [m for m in pool if m.name not in used_names]
         within_tol = [
             m for m in unused
