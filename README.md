@@ -477,4 +477,4 @@ fitgen/
 
 ## License
 
-MIT — Genesis Tech
+MIT
