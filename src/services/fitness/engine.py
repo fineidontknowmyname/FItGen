@@ -68,8 +68,7 @@ class FitnessEngine:
             return {"error": "Invalid pose detected (height 0)"}
 
         # 2. Calibration (Pixels per cm)
-        # Note: This implies the user is standing fully upright and fitting the frame similarly to the reference height.
-        # Ideally we'd use a known reference object, but using user height is the requested logic.
+           
         user_height_cm = user_profile.biometrics.height_cm
         pixels_per_cm = apparent_height_px / user_height_cm
 
@@ -77,16 +76,13 @@ class FitnessEngine:
         shoulder_width_cm = shoulder_width_px / pixels_per_cm
         hip_width_cm = hip_width_px / pixels_per_cm
         
-        # Waist Approximation (Midway between hip and shoulder, slightly weighted towards hip)
-        # We can also conceptually just estimate waist width as a fraction of hip/shoulder logic or position.
-        # Let's use geometrical midpoint:
         l_waist_x = (l_shoulder.x + l_hip.x) / 2
         l_waist_y = (l_shoulder.y + l_hip.y) / 2
         r_waist_x = (r_shoulder.x + r_hip.x) / 2
         r_waist_y = (r_shoulder.y + r_hip.y) / 2
         
         waist_width_px = np.sqrt((l_waist_x - r_waist_x)**2 + (l_waist_y - r_waist_y)**2)
-        # Adjusting: Waist is essentially narrower. Let's assume the visual width is roughly diameter.
+        #
         waist_width_cm = waist_width_px / pixels_per_cm
         
         # Estimate Circumference (assuming circular cross section is simplistic, but standard for visual est)
@@ -132,14 +128,6 @@ class FitnessEngine:
         feedback = []
         metrics = {}
         
-        # Mapping MediaPipe Pose Landmarks for reference
-        # 11: left_shoulder, 12: right_shoulder
-        # 23: left_hip, 24: right_hip
-        # 25: left_knee, 26: right_knee
-        # 27: left_ankle, 28: right_ankle
-        # 13: left_elbow, 14: right_elbow
-        # 15: left_wrist, 16: right_wrist
-
         if exercise_type.lower() == "squat":
             # Right side analysis (simplified)
             hip = landmarks[24]
@@ -175,8 +163,7 @@ class FitnessEngine:
                 elif elbow_angle < 90:
                     feedback.append("Good depth at bottom.")
         
-        # Add more exercises as needed...
-
+     
         return {
             "exercise": exercise_type,
             "metrics": metrics,
