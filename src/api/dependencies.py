@@ -1,32 +1,3 @@
-"""
-api/dependencies.py
---------------------
-FastAPI dependency-injection providers for shared service singletons.
-
-All providers are synchronous functions (no async needed since each just
-returns a cached singleton) and are safe to use in both sync and async
-endpoint handlers.
-
-Available dependencies
-──────────────────────
-get_orchestrator()          → PlanOrchestrator
-get_db()                    → AsyncSession          (re-exported from db.session)
-get_ollama_client()         → OllamaClient
-get_vision_model()          → ModelRegistry         (Keras model registry)
-get_body_composition()      → BodyCompositionService
-get_summarizer()            → SummarizerService
-get_youtube_service()       → YouTubeService
-get_settings()              → Settings              (re-exported from config)
-
-Usage
-─────
-    from api.dependencies import get_ollama_client
-    from integrations.ollama_client import OllamaClient
-
-    async def my_endpoint(client: OllamaClient = Depends(get_ollama_client)):
-        text = await client.generate_text("Hello")
-"""
-
 from __future__ import annotations
 
 # ── Re-export db dependency so endpoints only need to import from here ─────────
@@ -50,12 +21,7 @@ from integrations.ollama_client import ollama_client, OllamaClient
 
 
 def get_ollama_client() -> OllamaClient:
-    """
-    Return the shared OllamaClient singleton.
-
-    The client is stateless and safe to share across requests; it holds no
-    per-request state and uses httpx internally with connection pooling.
-    """
+   
     return ollama_client
 
 
@@ -65,12 +31,7 @@ from services.vision.model_loader import model_registry, ModelRegistry
 
 
 def get_vision_model() -> ModelRegistry:
-    """
-    Return the singleton ModelRegistry.
-
-    The first call to ``model_registry.body_composition`` triggers a lazy
-    load of the .keras weights; subsequent calls hit the in-memory cache.
-    """
+    
     return model_registry
 
 
