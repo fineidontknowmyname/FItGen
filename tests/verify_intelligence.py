@@ -16,17 +16,17 @@ async def main():
     print(f"Extracted Video ID: {video_id}")
     
     if video_id == "dQw4w9WgXcQ":
-        print("✅ Video ID extraction successful")
+        print("Video ID extraction successful")
     else:
-        print("❌ Video ID extraction failed")
+        print("Video ID extraction failed")
 
     # Test Transcript (This might fail if no captions or network issues, but we test the import and call)
     print("\nAttempting to fetch transcript (may fail if no captions/network)...")
     transcript = youtube_service.get_transcript(video_id)
     if transcript:
-        print(f"✅ Transcript fetched ({len(transcript)} chars)")
+        print(f"Transcript fetched ({len(transcript)} chars)")
     else:
-        print("⚠️ Transcript fetch failed or empty (expected if no captions/network)")
+        print("!! Transcript fetch failed or empty (expected if no captions/network)")
 
     print("\n--- Verifying Summarizer Service ---")
     # Test Summarizer
@@ -36,11 +36,11 @@ async def main():
         summary = await summarizer_service.summarize_content(dummy_text)
         print(f"Summary: {summary}")
         if summary and "Failed" not in summary:
-            print("✅ Summarizer service working")
+            print("Summarizer service working")
         else:
-             print("❌ Summarizer returned failure message")
+             print("x Summarizer returned failure message")
     except Exception as e:
-        print(f"❌ Summarizer threw exception: {e}")
+        print(f"x Summarizer threw exception: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
