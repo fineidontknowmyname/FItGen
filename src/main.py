@@ -1,29 +1,3 @@
-"""
-main.py
---------
-FastAPI application entry-point for FitGen.
-
-Startup sequence (lifespan)
-─────────────────────────────
-  1. Create / verify DB tables (SQLAlchemy declarative models)
-  2. Pre-warm on-device vision model (MobileNetV2 weights into RAM)
-  3. Check Ollama connectivity — warn but do not abort on failure
-  4. Check Celery / Redis connectivity — warn but do not abort on failure
-
-Exception handlers
-───────────────────
-  DomainBaseError subclasses → structured JSON  {"error": code, "detail": msg}
-  RequestValidationError      → 422 with Pydantic field errors normalised
-  Unhandled Exception         → 500 with opaque message (no stack leak)
-
-Routes
-───────
-  /api/v1/*                   — versioned API (plans, vision, users)
-  /generate-plan              — 307 redirect shim (legacy frontend compat)
-  GET /health                 — liveness check (no DB dependency)
-  GET /api/v1/health          — same, mounted under versioned prefix
-  GET /api/v1/celery-health   — Celery / Redis broker ping
-"""
 
 from __future__ import annotations
 
@@ -54,12 +28,6 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan context manager.
-
-    Runs startup tasks before yielding control to the ASGI server, and
-    shutdown tasks (if any) after the yield.
-    """
     # 1. DB
     log.info("Startup: creating / verifying database tables …")
     try:
