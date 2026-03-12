@@ -68,6 +68,7 @@ Upload up to 3 photos for body composition analysis:
 - Posture assessment
 - Muscle level estimate — Low / Moderate / High / Very High
 
+>>ProTip: Use AI tool to enhance your image and then, upload it to FitGen for better results.
 > These are geometry-based estimates from MediaPipe landmarks, not clinical measurements.
 > Use as directional guidance only.
 
