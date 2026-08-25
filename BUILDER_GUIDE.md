@@ -231,10 +231,13 @@ JSON only:"""
 cd "D:\path\to\koda"
 py -3.11 -m venv venv
 venv\Scripts\activate.bat
-pip install -e .
+pip install -r requirements.lock.txt
+pip install -e . --no-deps
 ```
 
-`pip install -e .` (see `pyproject.toml`) installs the dependencies from `requirements.txt` and registers the `src/` packages for import from anywhere. This is a one-time step per venv — no `PYTHONPATH` needed afterward, on any shell, from any working directory.
+The first command installs exact, hash-pinned dependency versions from `requirements.lock.txt` — reproducible across machines instead of whatever's newest on PyPI on install day. The second (see `pyproject.toml`) registers the `src/` packages for import from anywhere without re-resolving against `requirements.txt`'s loose ranges. This is a one-time step per venv — no `PYTHONPATH` needed afterward, on any shell, from any working directory.
+
+Adding or bumping a dependency: edit `requirements.txt`, then regenerate the lock with `uv pip compile requirements.txt --python-version 3.11 --generate-hashes -o requirements.lock.txt` (requires [uv](https://github.com/astral-sh/uv)), then `pip install -r requirements.lock.txt`. Commit both files together.
 
 Verify MediaPipe:
 ```cmd

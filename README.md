@@ -162,10 +162,13 @@ python --version   # must show Python 3.11.x
 ### 3. Install backend dependencies
 
 ```bash
-pip install -e .
+pip install -r requirements.lock.txt
+pip install -e . --no-deps
 ```
 
-This installs the dependencies from `requirements.txt` and registers the `src/` packages (`db`, `core`, `schemas`, `api`, ...) for import from anywhere — no `PYTHONPATH` needed, ever, regardless of your working directory or how you launch the app.
+The first command installs the exact, hash-pinned dependency versions from `requirements.lock.txt` — the same versions every time, on every machine, regardless of what's newly released on PyPI. The second registers the `src/` packages (`db`, `core`, `schemas`, `api`, ...) for import from anywhere — no `PYTHONPATH` needed, ever, regardless of your working directory or how you launch the app — without re-resolving dependencies against the loose ranges in `requirements.txt`.
+
+`requirements.txt` still exists as the human-edited source of intent (loose `>=` ranges); `requirements.lock.txt` is generated from it and is what actually gets installed. See "Updating dependencies" below before adding or bumping a package.
 
 > ! MediaPipe version matters. If you see import errors, pin exactly:
 > ```bash
@@ -270,6 +273,24 @@ cd frontend && npm run dev
 ```
 
 Open: **http://localhost:3000**
+
+---
+
+## Updating Dependencies
+
+`requirements.txt` (loose `>=` ranges) is the human-edited source of intent. `requirements.lock.txt` (exact pinned versions + hashes) is generated from it and is what actually gets installed — this is what makes a clean install reproducible instead of picking up whatever's newest on PyPI that day.
+
+To add or bump a package:
+```bash
+# 1. Edit requirements.txt (add the package, or change its range)
+# 2. Regenerate the lockfile:
+uv pip compile requirements.txt --python-version 3.11 --generate-hashes -o requirements.lock.txt
+# 3. Install it:
+pip install -r requirements.lock.txt
+# 4. Commit both requirements.txt and requirements.lock.txt together
+```
+
+Requires [uv](https://github.com/astral-sh/uv) (`pip install uv`, or see their install docs). `pyproject.toml` still reads its dependency list dynamically from `requirements.txt` (the loose file) — `pip install -e .` alone will re-resolve against those loose ranges rather than the lock, which is why the setup steps above install from `requirements.lock.txt` first and then run `pip install -e . --no-deps` (skips re-resolving).
 
 ---
 

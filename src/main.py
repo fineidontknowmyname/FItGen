@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     log.info("Startup: pre-warming vision model …")
     try:
         from services.vision.model_loader import model_registry
-        await asyncio.to_thread(model_registry.prewarm)
+        await asyncio.to_thread(model_registry.preload_all)
         log.info("Startup: vision model OK")
     except Exception as exc:
         log.warning("Startup: vision model pre-warm skipped — %s", exc)

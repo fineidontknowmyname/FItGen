@@ -28,9 +28,9 @@ if %errorlevel% == 0 (
     timeout /t 4 /nobreak >nul
 )
 
-REM ── Ensure the package is installed in editable mode (no-op if already installed)
+REM ── Ensure deps + package are installed from the pinned lockfile (no-op if already installed)
 call venv\Scripts\activate.bat
-pip show fitgen-koda >nul 2>&1 || pip install -e . -q
+pip show fitgen-koda >nul 2>&1 || (pip install -r requirements.lock.txt -q && pip install -e . --no-deps -q)
 
 REM ── Build temp helper scripts (avoids nested-quote issues with spaces in path)
 echo @echo off                                                      > "%TEMP%\koda_fastapi.bat"
