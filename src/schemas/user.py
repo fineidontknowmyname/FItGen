@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from schemas.common import Gender, ExperienceLevel, Injury, Equipment, FitnessGoal, ActivityLevel
 
 
@@ -8,18 +8,6 @@ class UserMetrics(BaseModel):
     weight_kg: float = Field(ge=30.0, le=200.0, description="Weight in kilograms")
     height_cm: float = Field(ge=95.0, le=250.0, description="Height in centimeters")
     gender: Gender  # male | female only
-
-    @field_validator("age", mode="before")
-    @classmethod
-    def clamp_age(cls, v):  # noqa: N805
-        """Clamp incoming age to 15–60 instead of rejecting it."""
-        return max(15, min(60, int(v)))
-
-    @field_validator("gender", mode="before")
-    @classmethod
-    def normalise_gender(cls, v):  # noqa: N805
-        """Map unrecognised gender values to 'male' instead of rejecting."""
-        return v if v in ("male", "female") else "male"
 
 
 class StrengthMetrics(BaseModel):
@@ -76,16 +64,16 @@ class UserProfile(BaseModel):
 
 
 class SignupRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=255)
     email: EmailStr
-    password: str
-    age: int
-    gender: str
-    height_cm: float
-    weight_kg: float
-    fitness_level: str
-    goals: List[str]
-    equipment_available: List[str] = []
-    injuries: List[str] = []
-    dietary_restrictions: List[str] = []
-    physical_activity_hours_per_day: float = 1.0
+    password: str = Field(min_length=8)
+    age: int = Field(ge=15, le=60)
+    gender: Gender
+    height_cm: float = Field(ge=95.0, le=250.0)
+    weight_kg: float = Field(ge=30.0, le=200.0)
+    fitness_level: ExperienceLevel
+    goals: List[FitnessGoal] = Field(min_length=1)
+    equipment_available: List[Equipment] = Field(default_factory=list)
+    injuries: List[Injury] = Field(default_factory=list)
+    dietary_restrictions: List[str] = Field(default_factory=list)
+    physical_activity_hours_per_day: float = Field(default=1.0, ge=0.0, le=16.0)

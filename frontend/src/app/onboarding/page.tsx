@@ -16,9 +16,26 @@ const STEPS = [
     { id: 'activity', title: 'Activity', description: 'Tell us how active you already are.' },
     { id: 'metrics', title: 'Baseline', description: 'What can you do right now?' },
     { id: 'goals', title: 'Goals', description: 'What are you aiming for?' },
+    { id: 'equipment', title: 'Equipment & Injuries', description: 'What do you have access to, and anything we should avoid?' },
     { id: 'videos', title: 'Videos', description: 'Add YouTube videos to build your plan from.' },
     { id: 'photos', title: 'Analysis', description: 'Upload photos for AI body composition analysis.' },
 ];
+
+const EQUIPMENT_OPTIONS = [
+    { value: 'bodyweight', label: 'Bodyweight only' },
+    { value: 'dumbbell', label: 'Dumbbells' },
+    { value: 'barbell', label: 'Barbell' },
+    { value: 'resistance_band', label: 'Resistance bands' },
+    { value: 'machine', label: 'Gym machines' },
+] as const;
+
+const INJURY_OPTIONS = [
+    { value: 'shoulder', label: 'Shoulder' },
+    { value: 'knee', label: 'Knee' },
+    { value: 'back', label: 'Back' },
+    { value: 'wrist', label: 'Wrist' },
+    { value: 'ankle', label: 'Ankle' },
+] as const;
 
 interface FormData {
     age: string; weight: string; height: string; gender: 'male' | 'female';
@@ -49,6 +66,20 @@ export default function OnboardingPage() {
     const [analysisWarning, setAnalysisWarning] = useState<string | null>(null);
 
     const set = (f: keyof FormData, v: unknown) => setForm(p => ({ ...p, [f]: v }));
+
+    const toggleEquipment = (value: string) => setForm(p => ({
+        ...p,
+        equipment: p.equipment.includes(value)
+            ? p.equipment.filter(e => e !== value)
+            : [...p.equipment, value],
+    }));
+
+    const toggleInjury = (value: string) => setForm(p => ({
+        ...p,
+        injuries: p.injuries.includes(value)
+            ? p.injuries.filter(i => i !== value)
+            : [...p.injuries, value],
+    }));
 
     const addUrl = () => set('youtubeUrls', [...form.youtubeUrls, '']);
     const removeUrl = (i: number) => set('youtubeUrls', form.youtubeUrls.filter((_, x) => x !== i));
@@ -263,8 +294,46 @@ export default function OnboardingPage() {
                                 </div>
                             )}
 
-                            {/* Step 5 — YouTube videos */}
+                            {/* Step 5 — Equipment & Injuries */}
                             {step === 4 && (
+                                <div className="space-y-8">
+                                    <div className="space-y-3">
+                                        <Label>Available Equipment</Label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {EQUIPMENT_OPTIONS.map(opt => (
+                                                <label key={opt.value}
+                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-950 border border-white/10 text-sm cursor-pointer hover:border-yellow-500/30 transition-colors">
+                                                    <input type="checkbox"
+                                                        checked={form.equipment.includes(opt.value)}
+                                                        onChange={() => toggleEquipment(opt.value)}
+                                                        className="accent-yellow-500" />
+                                                    {opt.label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-zinc-500">Leave blank if you only train with bodyweight.</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <Label>Injuries or Areas to Avoid Stressing</Label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {INJURY_OPTIONS.map(opt => (
+                                                <label key={opt.value}
+                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-950 border border-white/10 text-sm cursor-pointer hover:border-yellow-500/30 transition-colors">
+                                                    <input type="checkbox"
+                                                        checked={form.injuries.includes(opt.value)}
+                                                        onChange={() => toggleInjury(opt.value)}
+                                                        className="accent-yellow-500" />
+                                                    {opt.label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-zinc-500">FitGen will filter out exercises that stress these areas.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 6 — YouTube videos */}
+                            {step === 5 && (
                                 <div className="space-y-4">
                                     <p className="text-sm text-zinc-400">Add YouTube workout videos. FitGen extracts exercises from captions.</p>
                                     <div className="space-y-3">
@@ -286,8 +355,8 @@ export default function OnboardingPage() {
                                 </div>
                             )}
 
-                            {/* Step 6 — Photos */}
-                            {step === 5 && (
+                            {/* Step 7 — Photos */}
+                            {step === 6 && (
                                 <div className="space-y-6">
                                     {([
                                         { key: 'frontPhoto' as const, label: 'Front view', required: true },

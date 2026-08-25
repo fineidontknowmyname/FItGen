@@ -312,7 +312,7 @@ class _InferenceEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BodyCompositionService:
-       def __init__(self) -> None:
+    def __init__(self) -> None:
         self._engine = _InferenceEngine()
 
     async def analyze(

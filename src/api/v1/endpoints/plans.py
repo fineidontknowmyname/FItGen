@@ -109,52 +109,32 @@ async def get_job_status(
     When `status == "done"`, `result` contains the full `FitnessPlan` JSON.
     When `status == "failed"`, `error` contains the exception message.
     """
+    from db.repository import get_plan_by_job_id_async
+    db_record = await get_plan_by_job_id_async(db, job_id)
+
+    if db_record is not None and db_record.status == "done":
+        return JobStatusResponse(
+            job_id=job_id,
+            status=JobStatus.done,
+            result=db_record.plan_json,
+        )
+
+    if db_record is not None and db_record.status == "failed":
+        return JobStatusResponse(
+            job_id=job_id,
+            status=JobStatus.failed,
+            error=db_record.error_detail or "Job failed",
+        )
+
+    fallback_status = JobStatus(db_record.status) if db_record is not None else JobStatus.pending
+
     try:
         celery_app, _ = _get_celery()
         result_obj = celery_app.AsyncResult(job_id)
-        state      = result_obj.state
-
-        status = _task_to_status(state)
-
-        if state == "SUCCESS":
-            return JobStatusResponse(
-                job_id=job_id,
-                status=status,
-                result=result_obj.result,   # FitnessPlan dict
-            )
-
-        if state == "FAILURE":
-            exc = result_obj.result
-            return JobStatusResponse(
-                job_id=job_id,
-                status=status,
-                error=str(exc) if exc else "Unknown error",
-            )
-
-        # Celery shows pending/running — check DB as source of truth
-        # (handles Redis TTL expiry where completed plans appear pending)
-        from db.repository import get_plan_by_job_id_async
-        db_record = await get_plan_by_job_id_async(db, job_id)
-
-        if db_record is not None:
-            if db_record.status == "done":
-                return JobStatusResponse(
-                    job_id=job_id,
-                    status=JobStatus.done,
-                    result=db_record.plan_json,
-                )
-            if db_record.status == "failed":
-                return JobStatusResponse(
-                    job_id=job_id,
-                    status=JobStatus.failed,
-                    error=db_record.error_detail or "Job failed",
-                )
-
-        return JobStatusResponse(job_id=job_id, status=status)
-
+        return JobStatusResponse(job_id=job_id, status=_task_to_status(result_obj.state))
     except Exception as exc:
-        log.exception("Error polling job %s: %s", job_id, exc)
-        raise HTTPException(status_code=500, detail="Error retrieving job status")
+        log.warning("Celery broker unreachable while polling job %s — using DB state: %s", job_id, exc)
+        return JobStatusResponse(job_id=job_id, status=fallback_status)
 
 
 # ── GET /job/{job_id}/pdf  (download PDF once done) ───────────────────────────
