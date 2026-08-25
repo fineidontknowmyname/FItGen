@@ -35,5 +35,9 @@ reportlab>=4.2.0
 # ── YouTube transcript fetching ───────────────────────────────────────────────
 youtube-transcript-api>=0.6.2
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
+passlib[bcrypt]>=1.7.4         # password hashing
+PyJWT>=2.9.0                   # JWT access token signing/verification
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-Levenshtein>=0.25.0     # fast string similarity (exercise name matching)

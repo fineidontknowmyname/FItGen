@@ -36,6 +36,28 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
+api.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('fitgen_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
+api.interceptors.response.use(
+    (res) => res,
+    (err) => {
+        if (typeof window !== 'undefined' && axios.isAxiosError(err) && err.response?.status === 401) {
+            localStorage.removeItem('fitgen_token');
+            localStorage.removeItem('fitgen_user');
+            localStorage.removeItem('fitgen_onboarded');
+        }
+        return Promise.reject(err);
+    }
+);
+
 export default api;
 
 // ---------------------------------------------------------------------------

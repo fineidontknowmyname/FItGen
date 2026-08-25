@@ -8,14 +8,13 @@ export default function Header() {
 
     useEffect(() => {
         const checkAuth = () => {
-            // Check for mock auth
-            const user = localStorage.getItem('fitgen_user');
-            setIsLoggedIn(!!user);
+            setIsLoggedIn(!!localStorage.getItem('fitgen_token'));
         };
         checkAuth();
     }, []);
 
     const handleLogout = () => {
+        localStorage.removeItem('fitgen_token');
         localStorage.removeItem('fitgen_user');
         localStorage.removeItem('fitgen_onboarded');
         localStorage.removeItem('fitgen_theme');

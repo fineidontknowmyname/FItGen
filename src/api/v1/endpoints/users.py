@@ -22,33 +22,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import UserProfileModel
+from api.dependencies import get_current_user
+from core.security import create_access_token, hash_password, verify_password
+from db.models import UserProfileModel, UserRecord
 from db.session import get_db
 from schemas.user import UserProfile, SignupRequest
 
 log = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-# ── Password hashing (passlib if installed, plain fallback) ───────────────────
-
-def _hash_password(plain: str) -> str:
-    try:
-        from passlib.context import CryptContext
-        _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        return _ctx.hash(plain)
-    except ImportError:
-        return plain  # plain-text fallback when passlib is not installed
-
-
-def _verify_password(plain: str, hashed: str) -> bool:
-    try:
-        from passlib.context import CryptContext
-        _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        return _ctx.verify(plain, hashed)
-    except ImportError:
-        return plain == hashed  # plain-text fallback
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -118,32 +100,13 @@ def _flatten_profile(row: UserProfileModel) -> dict:
 
 @router.get(
     "/me",
-    summary="Get current user profile (mock auth — returns latest user)",
+    summary="Get current user profile",
     response_model=None,
 )
 async def get_current_user_profile(
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
 ) -> Any:
-    """
-    Return the logged-in user's profile.
-
-    **⚠ Mock auth implementation** — no JWT verification yet.
-    Returns the most recently created user record.  When real auth is
-    wired up, this will read the ``user_id`` from the verified JWT token.
-    """
-    # Return the latest created user (highest id = most recent signup)
-    result = await db.execute(
-        select(UserProfileModel).order_by(UserProfileModel.id.desc()).limit(1)
-    )
-    row = result.scalar_one_or_none()
-
-    if row is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No user profiles exist yet. Please sign up first.",
-        )
-
-    return _flatten_profile(row)
+    return _flatten_profile(current_user)
 
 
 # ── POST /  (signup — creates user account) ────────────────────────────────────
@@ -204,7 +167,7 @@ async def create_user_profile(
         user_id=user_id,
         name=body.name,
         email=body.email,
-        hashed_password=_hash_password(body.password),
+        hashed_password=hash_password(body.password),
         profile_json=profile_json,
     )
     db.add(row)
@@ -241,12 +204,10 @@ async def login(
     if row is None:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not _verify_password(password, row.hashed_password or ""):
+    if not verify_password(password, row.hashed_password or ""):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Return a simple mock token (replace with real JWT when auth is fully wired)
-    import secrets
-    token = secrets.token_urlsafe(32)
+    token = create_access_token(row.user_id)
 
     log.info("User logged in  user_id=%s  email=%s", row.user_id, row.email)
 

@@ -5,6 +5,49 @@ from __future__ import annotations
 from db.session import get_db as get_db  # noqa: F401 (re-export)
 
 
+# ── Auth ───────────────────────────────────────────────────────────────────────
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.security import decode_access_token, InvalidTokenError
+from db.models import UserRecord
+
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+_CREDENTIALS_EXCEPTION = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Not authenticated",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> UserRecord:
+    if credentials is None:
+        raise _CREDENTIALS_EXCEPTION
+
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except InvalidTokenError:
+        raise _CREDENTIALS_EXCEPTION
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise _CREDENTIALS_EXCEPTION
+
+    result = await db.execute(select(UserRecord).where(UserRecord.user_id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise _CREDENTIALS_EXCEPTION
+
+    return user
+
+
 # ── Orchestrator ────────────────────────────────────────────────────────────────
 
 from core.orchestrator import plan_orchestrator, PlanOrchestrator

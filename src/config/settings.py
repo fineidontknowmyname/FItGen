@@ -1,8 +1,11 @@
+import logging
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from functools import lru_cache
 from typing import Optional
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # src/config/settings.py -> src/config -> src -> root
@@ -73,6 +76,19 @@ class Settings(BaseSettings):
         description="Enable verbose SQL logging and debug tracebacks",
     )
 
+    SECRET_KEY: str = Field(
+        default="dev-only-insecure-secret-change-me",
+        description=(
+            "HMAC signing key for JWT access tokens. MUST be overridden via "
+            "the .env SECRET_KEY value (e.g. `python -c \"import secrets; "
+            "print(secrets.token_urlsafe(32))\"`) outside of local dev."
+        ),
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60 * 24,
+        description="JWT access token lifetime, in minutes (default: 24h)",
+    )
+
     # Model config — read from .env file
     model_config = SettingsConfigDict(
         env_file=str(ENV_PATH),
@@ -115,7 +131,14 @@ def get_settings() -> Settings:
         def my_endpoint(cfg: Settings = Depends(get_settings)):
             ...
     """
-    return Settings()
+    instance = Settings()
+    if instance.SECRET_KEY == "dev-only-insecure-secret-change-me" and instance.ENVIRONMENT != "local":
+        log.warning(
+            "SECRET_KEY is using the insecure default outside of a local environment "
+            "(ENVIRONMENT=%s). Set a real SECRET_KEY in .env before deploying.",
+            instance.ENVIRONMENT,
+        )
+    return instance
 
 
 settings = get_settings()

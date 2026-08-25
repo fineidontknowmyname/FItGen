@@ -36,26 +36,43 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            // Create a user profile — when real auth is added, this becomes a proper
-            // POST /auth/register call. For now we seed sensible defaults.
             await api.post('/users/', {
-                biometrics: {
-                    age: Number(age),
-                    weight_kg: 70,       // filled in properly during onboarding
-                    height_cm: 175,
-                    gender,
-                },
-                metrics: { pushup_count: 0, situp_count: 0, squat_count: 0 },
-                experience_level: 'beginner',
-                fitness_goal: 'general_fitness',
+                name,
+                email,
+                password,
+                age: Number(age),
+                gender,
+                height_cm: 175,
+                weight_kg: 70,
+                fitness_level: 'beginner',
+                goals: ['general_fitness'],
             });
 
-            // TODO: Replace with real JWT storage once auth endpoint is wired
-            localStorage.setItem('fitgen_user', JSON.stringify({ name, email, gender, age }));
+            const loginRes = await api.post('/users/login', { email, password });
+            const loginData = loginRes.data as {
+                access_token: string;
+                user_id: string;
+                name: string;
+                email: string;
+            };
+
+            localStorage.setItem('fitgen_token', loginData.access_token);
+            localStorage.setItem('fitgen_user', JSON.stringify({
+                user_id: loginData.user_id,
+                name: loginData.name,
+                email: loginData.email,
+                gender,
+                age,
+            }));
             router.push('/onboarding');
         } catch (err) {
             console.error('Signup error:', err);
-            setError('Signup failed — please try again.');
+            const axiosErr = err as { response?: { status?: number } };
+            if (axiosErr?.response?.status === 409) {
+                setError('An account with this email already exists.');
+            } else {
+                setError('Signup failed — please try again.');
+            }
         } finally {
             setLoading(false);
         }

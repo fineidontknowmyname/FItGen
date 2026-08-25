@@ -144,7 +144,11 @@ export default function DashboardPage() {
 
     // ── Load user data on mount ──────────────────────────────────────────
     useEffect(() => {
-        // Load dark mode preference
+        if (!localStorage.getItem('fitgen_token')) {
+            router.push('/login');
+            return;
+        }
+
         const savedTheme = localStorage.getItem('fitgen_theme');
         if (savedTheme === 'light') setDarkMode(false);
 
