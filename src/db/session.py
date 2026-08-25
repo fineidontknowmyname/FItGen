@@ -48,32 +48,6 @@ engine = create_async_engine(
     connect_args=_connect_args,
 )
 
-# ── Sync engine (used by Celery workers that can't run async) ──────────────────
-
-def _sync_url(url: str) -> str:
-    """Convert an async DB URL to its synchronous driver equivalent."""
-    return (
-        url
-        .replace("sqlite+aiosqlite://", "sqlite://")
-        .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    )
-
-from sqlalchemy import create_engine as _create_sync_engine
-from sqlalchemy.orm import sessionmaker
-
-sync_engine = _create_sync_engine(
-    _sync_url(_DB_URL),
-    pool_pre_ping=True,
-    connect_args=_connect_args,
-)
-
-SessionLocal = sessionmaker(
-    bind=sync_engine,
-    autoflush=False,
-    autocommit=False,
-    expire_on_commit=False,
-)
-
 # ── Session factory ────────────────────────────────────────────────────────────
 
 AsyncSessionLocal = async_sessionmaker(
