@@ -36,7 +36,7 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            await api.post('/users/', {
+            await api.post('/api/v1/users/', {
                 name,
                 email,
                 password,
@@ -48,7 +48,7 @@ export default function SignupPage() {
                 goals: ['general_fitness'],
             });
 
-            const loginRes = await api.post('/users/login', { email, password });
+            const loginRes = await api.post('/api/v1/users/login', { email, password });
             const loginData = loginRes.data as {
                 access_token: string;
                 user_id: string;

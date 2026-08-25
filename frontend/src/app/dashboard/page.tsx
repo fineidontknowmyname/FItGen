@@ -56,7 +56,7 @@ export default function DashboardPage() {
         }
 
         // Always attempt to enrich from API (silent fail is OK)
-        api.get('/users/me')
+        api.get('/api/v1/users/me')
             .then(res => {
                 const merged = { ...(stored && stored !== 'true' ? JSON.parse(stored) : {}), ...res.data };
                 setUser(merged);

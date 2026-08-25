@@ -37,6 +37,7 @@ youtube-transcript-api>=0.6.2
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 passlib[bcrypt]>=1.7.4         # password hashing
+bcrypt<4.1                     # passlib 1.7.4's self-test breaks on bcrypt>=4.1 (unmaintained upstream; pin until passlib is replaced or patched)
 PyJWT>=2.9.0                   # JWT access token signing/verification
 
 # ── Utilities ─────────────────────────────────────────────────────────────────

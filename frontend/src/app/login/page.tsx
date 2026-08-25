@@ -17,7 +17,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await api.post('/users/login', { email, password });
+            const res = await api.post('/api/v1/users/login', { email, password });
             const data = res.data as {
                 access_token: string;
                 token_type: string;
