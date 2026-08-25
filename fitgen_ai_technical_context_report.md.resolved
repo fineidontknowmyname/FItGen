@@ -1,0 +1,547 @@
+# FitGen AI (Koda) — Complete Technical Context Report
+
+---
+
+## 1. Project Overview
+
+**FitGen AI (Koda)** is an AI-powered personalized fitness plan generation API built on FastAPI. It generates structured 4-week workout and diet plans by combining user biometrics, optional YouTube video content analysis, and optional on-device body composition computer vision.
+
+**Repository:** `d:\Genesis tech\Github repo\koda`  
+**Company:** Genesis Tech  
+**Stack Summary:**
+
+| Layer | Technology |
+|---|---|
+| API Framework | FastAPI (async) |
+| Task Queue | Celery + Redis |
+| Database | SQLAlchemy 2.0 async (SQLite default / PostgreSQL prod) |
+| LLM / Vision AI | Ollama (`llama3.2` text, `llava` vision) |
+| On-Device Vision | MediaPipe Pose + MobileNetV2 (TensorFlow/Keras) |
+| PDF Export | ReportLab |
+| Frontend | Next.js (TypeScript, Tailwind CSS) |
+| YouTube | `youtube-transcript-api` |
+| Validation | Pydantic v2 |
+| Migrations | Alembic |
+
+---
+
+## 2. Current Status
+
+### Working / Implemented
+- ✅ Full plan generation pipeline (Mode A/B/C) via [PlanOrchestrator](file:///d:/Genesis%20tech/Github%20repo/koda/src/core/orchestrator.py#87-669)
+- ✅ Three orchestrator modes: profile-only (A), + YouTube (B), + vision/body composition (C)
+- ✅ Async Celery task dispatch with Redis broker + result backend
+- ✅ Job polling endpoint (GET `/plans/job/{job_id}`)
+- ✅ PDF report generation with ReportLab (cover, metrics, diet, workout, roadmap, SWR)
+- ✅ Body composition analysis: MediaPipe Pose + MobileNetV2 (on-device, no cloud)
+- ✅ Shoulder-to-Waist Ratio (SWR) analysis and PDF rendering
+- ✅ 4-phase 13-week Transformation Roadmap with per-phase day-by-day breakdown
+- ✅ YouTube transcript ingestion with 12,000-char token guard and parallel fetch
+- ✅ LLM exercise extraction, video classification (workout/diet/motivation/general)
+- ✅ Safety filter (equipment + injury matching)
+- ✅ Capacity score computation (strength metrics + activity + BMI + muscle + SWR)
+- ✅ TDEE / BMR / macro computation (Mifflin-St Jeor + goal delta)
+- ✅ Progressive overload (4-week, reps + weight scaling)
+- ✅ User CRUD (SQLite/Postgres) with JSON blob storage
+- ✅ Vision consent gate (HTTP 451 on missing `X-Vision-Consent: true` header)
+- ✅ Smoke tests for orchestrator, SWR, vision, biometrics, intelligence
+
+### Known Limitations / Missing for Launch
+- ⚠️ **No real authentication** — `GET /users/me` returns the latest-created user (mock auth, no JWT)
+- ⚠️ **No `plan_tasks.py`** — referenced but file doesn't exist (no dedicated plan worker module separate from [tasks.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/workers/tasks.py))
+- ⚠️ **MobileNetV2 imagenet weights used as a muscle proxy** — not a trained classifier; uses upper-half feature magnitude heuristic (lacks ground-truth labelled data)
+- ⚠️ **No frontend plan display** — frontend shows landing/signup/onboarding/status pages but no plan viewer beyond PDF download
+- ⚠️ **No email verification, password hashing, or session management**
+- ⚠️ **PostgreSQL not supported on Python 3.14** — `asyncpg` and `psycopg2-binary` lack 3.14 wheels
+- ⚠️ **`VideoAnalyst.process_video_stream`** uses `cv2.VideoCapture` (real-time video loop) — this runs in the API process and will block; not production-safe
+- ⚠️ **Celery broker required for async dispatch** — no queue = `POST /plans/generate` fails at runtime
+
+---
+
+## 3. Complete Logic Flow
+
+### 3.1 Plan Generation (Full Pipeline)
+
+```
+Client → POST /api/v1/plans/generate
+           ↓
+        GeneratePlanRequest validated (Pydantic)
+           ↓
+        generate_plan_task.delay(payload)  → Celery → Redis broker
+           ↓ (async)
+        returns JobResponse { job_id, status=pending }
+        
+Worker picks up task:
+        generate_plan_task(payload)
+           ↓
+        GeneratePlanRequest.model_validate(payload)
+           ↓
+        asyncio.run(plan_orchestrator.generate_plan(...))
+           ↓
+        [STAGE 0] Detect mode: A / B / C
+           ↓
+  MODE A (profile only):
+        _default_exercise_pool() → get_default_exercises(goal, equipment, exp_level, injuries)
+        _default_diet_notes(user_profile)
+        
+  MODE B/C (with YouTube):
+        _fetch_transcripts(urls)        → YouTubeService.fetch_many() [parallel, 12k guard]
+        _classify_videos()              → SummarizerService.classify_video() [Ollama]
+        _collect_by_label(workout/diet) → concat transcripts by category
+        ollama_client.extract_exercises(workout_text) → ExerciseLibrary
+        safety_engine.filter_exercises(injuries, equipment)  [fallback to default if empty]
+        _extract_diet_guidance(diet_transcripts)  → ollama_client.generate_text(prompt)
+
+        [STAGE 4] capacity_engine.calculate_score(biometrics, strength, physical_activity, body_composition?)
+        [STAGE 5] _compute_body_metrics(user_profile, capacity_score) → BodyMetrics
+        [STAGE 7] _build_base_week(safe_exercises) → WeeklySchedule (Mon/Wed/Fri chunks)
+        [STAGE 7b] scheduler.build_weekly_plan() → WeeklyPlan + roadmap
+        [STAGE 8] progression_engine.apply_progression(base_week, 4 weeks, capacity_score) → List[WeeklySchedule]
+
+        Returns FitnessPlan { title, weeks, body_metrics, diet_notes, body_composition, roadmap }
+           ↓
+        _persist_plan(job_id, "done", plan_dict)
+        
+Client polls: GET /api/v1/plans/job/{job_id}
+           ↓
+        celery_app.AsyncResult(job_id).state → JobStatusResponse { status, result? }
+        
+Client downloads: GET /api/v1/plans/job/{job_id}/pdf
+           ↓
+        FitnessPlan.model_validate(result) → pdf_architect.render_plan(plan) → bytes stream
+```
+
+### 3.2 Vision Body Composition Analysis
+
+```
+Client → POST /api/v1/vision/analyze-body
+         (multipart: front + side? + back?, X-Vision-Consent: true, height_cm, gender)
+           ↓
+        Consent check (HTTP 451 if missing)
+        MIME / size / resolution validation per image
+           ↓
+        body_composition_service.analyze(images, height_cm, gender)
+           ↓ [asyncio.to_thread for each image]
+        Per image: _InferenceEngine.analyse_one(image_bytes, height_cm, gender)
+          ├── _decode() → BGR numpy (validates 10MB max, 200px min)
+          ├── _extract_features() → MobileNetV2 global-avg-pool (1280-dim features)
+          │     └── _features_to_muscle() → MuscleLevel + confidence
+          └── _landmark_metrics() → MediaPipe Pose (context manager, static_image_mode=2)
+                ├── RFM body fat: rfm_k - (20 * height / waist_circ)  [male k=64, female k=76]
+                ├── V-taper: shoulder_cm / hip_cm
+                ├── Posture: shoulder tilt heuristic
+                └── SWR: calculate_shoulder_waist_ratio(landmarks, w, h)
+                      → (shoulder_px, waist_px, ratio, SWRCategory)
+           ↓
+        _fuse(valid_results): ensemble avg scalars, majority-vote categories
+           ↓
+        Returns BodyComposition Pydantic model
+```
+
+---
+
+## 4. Key Formulas
+
+### BMI
+```
+BMI = weight_kg / (height_m)²
+```
+
+### BMR (Mifflin-St Jeor)
+```
+Male:   10 * weight_kg + 6.25 * height_cm - 5 * age + 5
+Female: 10 * weight_kg + 6.25 * height_cm - 5 * age - 161
+```
+
+### TDEE
+```
+TDEE = BMR × PAL_factor
+PAL: sedentary=1.20, lightly_active=1.375, moderately_active=1.55, very_active=1.725, extra_active=1.90
+```
+
+### Calorie Target
+```
+calorie_target = max(1200, TDEE + goal_delta)
+Goal deltas: weight_loss=-500, muscle_gain=+300, strength_gain=+200, endurance/flexibility/general=0
+```
+
+### Protein Target (Orchestrator internal)
+```
+protein_factor = 1.6 + (0.6 × (capacity_score - 0.5))  → range 1.6–2.2 g/kg
+protein_g = max(50, weight_kg × protein_factor)
+fat_g = calorie_target × 0.25 / 9
+carbs_g = max(0, (calorie_target - protein_g×4 - fat_g×9) / 4)
+```
+
+### Ideal Weight (Devine Formula)
+```
+height_over_152 = max(0, height_cm - 152.4)
+Male:   ideal_kg = 50 + 2.3 × (height_over_152 / 2.54)
+Female: ideal_kg = 45.5 + 2.3 × (height_over_152 / 2.54)
+```
+
+### Capacity Score
+```
+Base = strength_score (from pushup/squat/situp ratios)
+  + activity_bonus (from hours/day: 0–0.15)
+  - BMI_penalty (BMI 25–30: -0.05; 30+: -0.10)
+  + muscle_bonus (MuscleLevel: high=+0.05, very_high=+0.10)
+  + SWR_bonus (athletic=+0.08, overfat=-0.05)
+Final = clamp(base_score, 0.50, 1.50)
+```
+
+### RFM Body Fat
+```
+Male:   rfm = 64 - (20 × height_cm / waist_circumference_cm)
+Female: rfm = 76 - (20 × height_cm / waist_circumference_cm)
+clamped: [3%, 50%]
+```
+
+### Shoulder-to-Waist Ratio (SWR)
+```
+swr = shoulder_width_px / waist_width_px   (hip landmark used as waist proxy)
+Categories: swr < 1.0 → OVERFAT, 1.0–1.2 → BALANCED, > 1.2 → ATHLETIC
+```
+
+### MobileNetV2 Muscle Proxy Score
+```
+features = MobileNetV2 GlobalAvgPool (1280-dim)
+hi = mean(|features[640:]|)
+lo = mean(|features[:640]|)
+score = hi / (hi + lo)
+Thresholds: ≥0.70 → Very High, ≥0.52 → High, ≥0.34 → Moderate, else → Low
+```
+
+### Progressive Overload (Progression Engine)
+```
+For each week w (1-4):
+  reps_multiplier   = 1.0 + (w × 0.05 × capacity_score)
+  weight_multiplier = 1.0 + (w × 0.025 × capacity_score)
+  Each set: reps = round(base_reps × reps_multiplier), weight_kg = base_weight × weight_multiplier
+```
+
+---
+
+## 5. Database Schema
+
+### `user_records` (ORM: [UserRecord](file:///d:/Genesis%20tech/Github%20repo/koda/src/db/models.py#43-92))
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer PK | Auto-increment |
+| user_id | String(64) | Public stable ID, unique |
+| email | String(255) | Optional, unique |
+| hashed_password | String(256) | Optional (no auth yet) |
+| is_active | Boolean | Default True |
+| profile_json | JSON | Full `UserProfile.model_dump()` blob |
+| analysis_consent | Boolean | Mirrors vision consent |
+| created_at | DateTime(tz) | DB server default |
+| updated_at | DateTime(tz) | Auto-updated |
+
+### `fitness_plan_records` (ORM: [FitnessPlanRecord](file:///d:/Genesis%20tech/Github%20repo/koda/src/db/models.py#96-153))
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer PK | Auto-increment |
+| job_id | String(64) | Celery task ID, unique |
+| user_id | String(64) FK | → user_records.user_id (CASCADE delete, nullable) |
+| status | String(16) | pending / running / done / failed |
+| request_json | JSON | Input [GeneratePlanRequest](file:///d:/Genesis%20tech/Github%20repo/koda/src/schemas/plan.py#56-89) snapshot |
+| plan_json | JSON | Output `FitnessPlan.model_dump()` |
+| error_detail | Text | Error message when failed |
+| youtube_urls | JSON | List of URLs used |
+| created_at | DateTime(tz) | DB server default |
+| completed_at | DateTime(tz) | Set on done/failed |
+
+> **Design principle:** Rich schemas stored as JSON blobs — avoids migration burden when Pydantic schemas evolve.
+
+---
+
+## 6. API Endpoints
+
+### Plans (`/api/v1/plans`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/generate` | None | Dispatch async Celery task → 202 + `JobResponse{job_id}` |
+| GET | `/job/{job_id}` | None | Poll status → `JobStatusResponse{status, result?, error?}` |
+| GET | `/job/{job_id}/pdf` | None | Download PDF (202 if still running, 400 if failed) |
+| POST | `/generate/pdf` | None | Legacy sync plan + PDF — kept for backward compat |
+
+### Users (`/api/v1/users`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/me` | Mock (latest user) | Return current user profile (flattened) |
+| POST | `/` | None | Create user profile → 201 + [UserProfile](file:///d:/Genesis%20tech/Github%20repo/koda/src/schemas/user.py#44-56) |
+| GET | `/{user_id}` | None | Get profile by ID |
+| PUT | `/{user_id}` | None | Replace profile |
+| DELETE | `/{user_id}` | None | Delete profile → 204 |
+
+### Vision (`/api/v1/vision`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/analyze-body` | `X-Vision-Consent: true` | Multi-view body composition (1–3 images) → [BodyComposition](file:///d:/Genesis%20tech/Github%20repo/koda/src/schemas/vision.py#14-84) |
+
+### System
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Liveness check |
+| GET | `/api/v1/celery-health` | Celery connectivity probe |
+| POST | `/generate-plan` | Legacy 307 redirect → `/api/v1/plans/generate/pdf` |
+
+---
+
+## 7. Schema Map (Pydantic)
+
+### Input Chain for Plan Generation
+```
+GeneratePlanRequest
+  ├── user_profile: UserProfile
+  │     ├── biometrics: UserMetrics { age[15-60], weight_kg, height_cm, gender }
+  │     ├── metrics: StrengthMetrics { pushup_count, situp_count, squat_count }
+  │     ├── physical_activity: PhysicalActivity { activity_level, hours_per_day }
+  │     ├── injuries: List[Injury]
+  │     ├── equipment: List[Equipment]
+  │     ├── experience_level: ExperienceLevel
+  │     └── fitness_goal: FitnessGoal
+  ├── youtube_urls: List[str]
+  ├── transcript_text: Optional[str]
+  └── body_composition: Optional[BodyComposition]   ← from prior vision call
+```
+
+### Output Schema
+```
+FitnessPlan
+  ├── title: str
+  ├── weeks: List[WeeklySchedule]
+  │     └── WeeklySchedule { week_number, sessions: List[WorkoutSession] }
+  │           └── WorkoutSession { day_name, exercises: List[WorkoutExercise], duration_min }
+  │                 └── WorkoutExercise { exercise: Exercise, sets: List[WorkoutSet] }
+  │                       └── WorkoutSet { reps, weight_kg, rest_sec, notes? }
+  ├── body_metrics: Optional[BodyMetrics]   { bmi, bmr, tdee, calorie_target, macros... }
+  ├── diet_notes: Optional[str]
+  ├── body_composition: Optional[BodyComposition]
+  └── roadmap: Optional[TransformationRoadmap]
+        └── phases: List[PhaseGoal]  (4 phases × 13 weeks)
+              └── PhaseGoal { phase_name, duration_weeks, weekly_plan: WeeklyPlan, ... }
+                    └── WeeklyPlan { days: List[DailyWorkout] }
+                          └── DailyWorkout { day_name, exercises: List[ScheduledExercise], rest_day? }
+```
+
+### Vision Output Schema
+```
+BodyComposition
+  ├── fat_pct_low / fat_pct_high: Optional[float]
+  ├── muscle_level: Optional[MuscleLevel]  (low|moderate|high|very_high)
+  ├── body_type: Optional[BodyType]        (ectomorph|mesomorph|endomorph)
+  ├── v_taper_ratio: Optional[float]
+  ├── shoulder_width_px / waist_width_px: float
+  ├── shoulder_waist_ratio: float          (SWR)
+  ├── swr_category: SWRCategory            (OVERFAT|BALANCED|ATHLETIC)
+  ├── posture_assessment: Optional[str]
+  ├── is_valid_person: bool
+  ├── confidence: float
+  └── pose_detected: bool
+```
+
+---
+
+## 8. Frontend State
+
+### Routes (Next.js App Router)
+| Route | Description |
+|---|---|
+| `/` | Landing page (hero, brand, CTA → `/signup`) |
+| `/signup` | Sign up form |
+| `/login` | Login form |
+| `/onboarding` | User onboarding / profile creation |
+| `/dashboard` | User dashboard |
+| `/status` | Plan job status page |
+
+### Key Frontend Components
+| Component | Description |
+|---|---|
+| [JobStatusPoller.tsx](file:///d:/Genesis%20tech/Github%20repo/koda/frontend/src/components/JobStatusPoller.tsx) | Polls `GET /plans/job/{job_id}`, shows progress bar with 5 pipeline steps, handles PDF download via `downloadPlanPdf()` |
+| `Header` | Navigation header |
+| `Button` | Reusable UI button |
+
+### [JobStatusPoller](file:///d:/Genesis%20tech/Github%20repo/koda/frontend/src/components/JobStatusPoller.tsx#56-173) Progress Mapping
+| Backend Status | Progress % | Active Step |
+|---|---|---|
+| `pending` | 15% | Step 0: Queued |
+| `running` | 55% | Step 2: Analysing content |
+| `done` | 100% | Step 4: Rendering PDF → Download button appears |
+| `failed` | 100% | Step 4: Error + Try Again button |
+
+### `useJobStatus` Hook
+- Polls `GET /plans/job/{job_id}` on interval
+- Stops polling on `done` or `failed`
+- Exposes `{ status, error, isPolling, pollCount, stop }`
+
+---
+
+## 9. Known Issues
+
+| Issue | Severity | Location |
+|---|---|---|
+| No authentication — `GET /me` returns latest user, no JWT validation | HIGH | [users.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/api/v1/endpoints/users.py) |
+| `plan_tasks.py` referenced but file does not exist | MEDIUM | `workers/` |
+| `VideoAnalyst.process_video_stream` uses blocking `cv2.VideoCapture` loop | MEDIUM | [services/analyst.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/services/analyst.py) |
+| MobileNetV2 uses imagenet generic features as muscle proxy — not a trained classifier | MEDIUM | [body_composition.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/services/vision/body_composition.py) / [vision_analyzer.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/integrations/vision_analyzer.py) |
+| Celery broker (Redis) required for async plan generation — no graceful fallback UI | MEDIUM | [plans.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/api/v1/endpoints/plans.py), [tasks.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/workers/tasks.py) |
+| `asyncpg`/`psycopg2-binary` no Python 3.14 wheels — PostgreSQL blocked on 3.14 | LOW | [requirements.txt](file:///d:/Genesis%20tech/Github%20repo/koda/requirements.txt) |
+| Landing page still says "Gemma AI" — LLM backend changed to Ollama | LOW | [frontend/src/app/page.tsx](file:///d:/Genesis%20tech/Github%20repo/koda/frontend/src/app/page.tsx) |
+| No PATCH (partial update) for user profile — only full PUT replace | LOW | [users.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/api/v1/endpoints/users.py) |
+| Protein target computed twice (once in [core/protein.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/core/protein.py), once in [orchestrator.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/core/orchestrator.py)) — potential drift | LOW | [protein.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/core/protein.py), [orchestrator.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/core/orchestrator.py) |
+| `LandmarkDetector.detect()` references `mp.solutions.pose` without importing `mediapipe as mp` | BUG | `landmarks.py:58` |
+
+---
+
+## 10. Dependencies (Key)
+
+```
+FastAPI + Uvicorn          Web framework + ASGI server
+Pydantic v2                Schema validation + settings
+SQLAlchemy 2.0             ORM (async: aiosqlite, sync: plain sqlite3)
+Celery + Redis             Background task queue
+httpx                      Async HTTP (Ollama REST calls)
+youtube-transcript-api     YouTube captions ingestion
+mediapipe                  Pose landmark detection
+opencv-python-headless     Image decode + preprocessing
+tensorflow / keras         MobileNetV2 feature extraction
+reportlab                  PDF generation
+alembic                    DB migrations
+```
+
+---
+
+## 11. Changes from V1 to V2
+
+| Area | V1 | V2 |
+|---|---|---|
+| LLM Backend | Google Gemini (`gemini_client.py`) | Ollama ([ollama_client.py](file:///d:/Genesis%20tech/Github%20repo/koda/src/integrations/ollama_client.py)) — `gemini_client` alias kept |
+| Vision Intelligence | Gemini multimodal (`llava` only) | Dual pipeline: MediaPipe + MobileNetV2 + optional Ollama llava |
+| Orchestrator modes | Single flow | Mode A (no content) / B (YouTube) / C (YouTube + vision) |
+| DB Storage | In-memory dict (users) | SQLAlchemy + SQLite/PostgreSQL persisted records |
+| YouTube | Single sync fetch | Parallel [fetch_many()](file:///d:/Genesis%20tech/Github%20repo/koda/src/services/intelligence/youtube.py#100-150) with token guard + video classification |
+| Plan PDF sections | Basic workout table | Cover + Metrics + SWR + Diet + 4-phase Roadmap + Timeline + Progression Rules |
+| SWR Analysis | Not present | Full SWR calculation, PDF section, capacity scoring bonus |
+| Celery Integration | Partial | Full async dispatch + status polling + DB persistence |
+| Safety Filter | Not present | [SafetyFilterEngine](file:///d:/Genesis%20tech/Github%20repo/koda/src/core/safety.py#5-49) (equipment + injury) |
+| Transformation Roadmap | Not present | 4-phase 13-week roadmap with per-phase day-by-day |
+| Frontend | Placeholder | Next.js with onboarding, dashboard, job status poller |
+
+---
+
+## 12. Missing Features for Launch
+
+| Feature | Priority | Notes |
+|---|---|---|
+| JWT Authentication | CRITICAL | Replace mock `GET /me` — add login endpoint returning token |
+| Password hashing (bcrypt) | CRITICAL | `hashed_password` column exists in DB but unused |
+| Frontend plan viewer | HIGH | Currently only PDF download; no in-app plan display |
+| Celery deployment docs | HIGH | No docker-compose or deployment guide for Redis/Celery |
+| Trained MobileNetV2 body composition model | HIGH | Current weights = imagenet generic; needs fine-tuned `.keras` at `models/body_composition.keras` |
+| Rate limiting | MEDIUM | No API throttling |
+| PATCH endpoint for user profile | MEDIUM | Only full PUT replace currently |
+| Email verification | MEDIUM | No email flow |
+| Frontend vision consent UI | MEDIUM | No UI for uploading body photos and consent |
+| Error recovery UX | LOW | Frontend shows generic error; could show retry with context |
+| Celery flower dashboard config | LOW | Mentioned in docstring but not wired |
+
+---
+
+## 13. Architecture Diagram
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        FRONTEND (Next.js)                     │
+│  Landing → Signup → Onboarding → Dashboard → Status         │
+│  useJobStatus hook polls GET /plans/job/{id}                 │
+│  JobStatusPoller → Download PDF                              │
+└──────────────────────┬───────────────────────────────────────┘
+                       │  HTTP / REST
+┌──────────────────────▼───────────────────────────────────────┐
+│                     FASTAPI APPLICATION                       │
+│  main.py: lifespan(DB init + model preload) + CORS           │
+│                                                              │
+│  /api/v1/plans   /api/v1/users   /api/v1/vision             │
+│     plans.py        users.py        vision.py               │
+│                                                              │
+│  Dependencies: orchestrator, ollama_client, body_comp_svc   │
+└───────┬──────────────────────────┬──────────────────────────┘
+        │ Dispatch                 │ Direct call
+        ▼                          ▼
+┌───────────────┐      ┌──────────────────────────────────────┐
+│  Redis Broker │      │          CORE ENGINES                │
+│  (Celery)     │      │  bmi.py  tdee.py  protein.py         │
+└───────┬───────┘      │  capacity.py  exercise_scorer.py     │
+        │              │  scheduler.py  meal_selector.py      │
+        ▼              │  progression.py  safety.py           │
+┌───────────────┐      │  orchestrator.py  (coordinates all)  │
+│  Celery       │      └──────────┬───────────────────────────┘
+│  Worker       │                 │
+│  tasks.py     │──────calls──────┘
+│  (asyncio.run)│
+└───────┬───────┘
+        │                ┌─────────────────────────────────────┐
+        │                │         INTEGRATIONS                │
+        ├───────────────▶│  ollama_client.py (Ollama REST)     │
+        │                │    extract_exercises / generate_text │
+        │                │    analyze_image (llava)            │
+        │                └─────────────────────────────────────┘
+        │
+        │                ┌─────────────────────────────────────┐
+        │                │         VISION SERVICES             │
+        ├───────────────▶│  body_composition.py (MobileNetV2) │
+        │                │  landmarks.py (MediaPipe Pose)      │
+        │                │  model_loader.py (ModelRegistry)    │
+        │                └─────────────────────────────────────┘
+        │
+        │                ┌─────────────────────────────────────┐
+        │                │      INTELLIGENCE SERVICES          │
+        ├───────────────▶│  youtube.py (transcript fetch)      │
+        │                │  summarizer.py (classify+extract)   │
+        │                └─────────────────────────────────────┘
+        │
+        │                ┌─────────────────────────────────────┐
+        └───────────────▶│       DATABASE (SQLAlchemy)         │
+                         │  models.py: UserRecord,             │
+                         │            FitnessPlanRecord        │
+                         │  repository.py: save/get plan       │
+                         │  session.py: async + sync engines   │
+                         │  SQLite (dev) / PostgreSQL (prod)   │
+                         └─────────────────────────────────────┘
+                                          │
+                                          ▼
+                         ┌─────────────────────────────────────┐
+                         │          REPORTING                  │
+                         │  pdf_architect.py (ReportLab)       │
+                         │  Sections: Cover, Metrics, SWR,     │
+                         │  Diet, Roadmap, Timeline, Workout   │
+                         └─────────────────────────────────────┘
+```
+
+---
+
+## 14. Exception Taxonomy
+
+```
+DomainBaseError (500)
+├── ValidationError (422)
+│   ├── AgeOutOfRangeError       age not in 15–60
+│   ├── InvalidURLError          bad YouTube URL
+│   └── ConsentRequiredError     (451) no vision consent header
+├── NotFoundError (404)
+│   ├── UserNotFoundError
+│   └── PlanNotFoundError
+├── ExternalServiceError (502)
+│   ├── OllamaUnavailableError   (503) Ollama unreachable
+│   ├── TranscriptFetchError     YouTube transcript unavailable
+│   └── VisionModelError        (500) MediaPipe/MobileNetV2 failed
+├── PipelineError (500)
+│   ├── PlanGenerationError      orchestrator pipeline error
+│   └── JobDispatchError        (503) Celery dispatch failed
+└── ConfigurationError (500)    missing/invalid server config
+```
+
+---
+
+*Generated by Antigravity from full codebase read — all backend and frontend files read verbatim. Report date: 2025.*

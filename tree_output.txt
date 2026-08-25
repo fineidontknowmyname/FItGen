@@ -1,0 +1,156 @@
+FitGen (koda/)
+├── $null
+├── .env
+├── .env.example
+├── .gitignore
+├── BUG_REPORT.md
+├── CHANGELOG.md
+├── FitGen_Koda_Migration_Map.pdf
+├── README.md
+├── debug_mediapipe.py
+├── fitgen_ai_technical_context_report.md.resolved
+├── frontend
+│   ├── .gitignore
+│   ├── README.md
+│   ├── eslint.config.mjs
+│   ├── lint.json
+│   ├── lint.txt
+│   ├── lint_results.txt
+│   ├── next-env.d.ts
+│   ├── next.config.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.mjs
+│   ├── public
+│   │   ├── file.svg
+│   │   ├── globe.svg
+│   │   ├── next.svg
+│   │   ├── vercel.svg
+│   │   └── window.svg
+│   ├── src
+│   │   ├── app
+│   │   │   ├── dashboard
+│   │   │   │   └── page.tsx
+│   │   │   ├── favicon.ico
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   ├── login
+│   │   │   │   └── page.tsx
+│   │   │   ├── onboarding
+│   │   │   │   └── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── signup
+│   │   │   │   └── page.tsx
+│   │   │   └── status
+│   │   │       └── [jobId]
+│   │   │           └── page.tsx
+│   │   ├── components
+│   │   │   ├── JobStatusPoller.tsx
+│   │   │   ├── ServiceStatus.tsx
+│   │   │   ├── layout
+│   │   │   │   └── Header.tsx
+│   │   │   └── ui
+│   │   │       ├── Button.tsx
+│   │   │       ├── Input.tsx
+│   │   │       ├── Label.tsx
+│   │   │       └── Select.tsx
+│   │   ├── hooks
+│   │   │   └── useJobStatus.ts
+│   │   └── lib
+│   │       └── api.ts
+│   └── tsconfig.json
+├── koda.db
+├── koda_plan_8a2ff786.pdf
+├── koda_plan_fdf50107.pdf
+├── package-lock.json
+├── requirements.txt
+├── src
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── dependencies.py
+│   │   ├── routes.py
+│   │   └── v1
+│   │       ├── api.py
+│   │       └── endpoints
+│   │           ├── health.py
+│   │           ├── plans.py
+│   │           ├── users.py
+│   │           └── vision.py
+│   ├── config
+│   │   ├── __init__.py
+│   │   └── settings.py
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── bmi.py
+│   │   ├── capacity.py
+│   │   ├── default_exercises.py
+│   │   ├── default_meals.py
+│   │   ├── exercise_scorer.py
+│   │   ├── meal_selector.py
+│   │   ├── orchestrator.py
+│   │   ├── progression.py
+│   │   ├── protein.py
+│   │   ├── safety.py
+│   │   ├── scheduler.py
+│   │   ├── security.py
+│   │   └── tdee.py
+│   ├── db
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── models.py
+│   │   ├── repository.py
+│   │   └── session.py
+│   ├── exceptions.py
+│   ├── integrations
+│   │   ├── __init__.py
+│   │   ├── ollama_client.py
+│   │   └── vision_analyzer.py
+│   ├── koda.db
+│   ├── main.py
+│   ├── models
+│   ├── reporting
+│   │   ├── __init__.py
+│   │   └── pdf_architect.py
+│   ├── schemas
+│   │   ├── __init__.py
+│   │   ├── common.py
+│   │   ├── content.py
+│   │   ├── metrics.py
+│   │   ├── plan.py
+│   │   ├── responses.py
+│   │   ├── user.py
+│   │   └── vision.py
+│   ├── services
+│   │   ├── analyst.py
+│   │   ├── fitness
+│   │   │   └── engine.py
+│   │   ├── intelligence
+│   │   │   ├── summarizer.py
+│   │   │   ├── transcript_service.py
+│   │   │   └── youtube.py
+│   │   └── vision
+│   │       ├── body_composition.py
+│   │       ├── landmarks.py
+│   │       └── model_loader.py
+│   ├── tasks
+│   │   ├── __init__.py
+│   │   └── plan_tasks.py
+│   ├── utils
+│   │   └── pdf_gen.py
+│   └── workers
+│       ├── __init__.py
+│       ├── celery_app.py
+│       └── tasks.py
+├── start.bat
+├── stop.bat
+├── test.jpg
+├── test_output.pdf
+├── tests
+│   ├── verify_biometrics.py
+│   ├── verify_intelligence.py
+│   ├── verify_orchestrator.py
+│   ├── verify_swr.py
+│   └── verify_vision.py
+├── tmp
+├── tmp_tree.py
+└── tree_output.txt
