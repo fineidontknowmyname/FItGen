@@ -36,7 +36,8 @@ Thumbs.db
 .idea/
 
 tmp_tree.py
+tree_output.txt
+$null
 BUG_REPORT.md
 CHANGELOG.md
 test.jpg
-CHANGELOG.md

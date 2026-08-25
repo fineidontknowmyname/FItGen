@@ -27,7 +27,7 @@ sqlalchemy[asyncio]>=2.0.30    # async ORM; asyncio extra pulls in greenlet
 aiosqlite>=0.20.0              # SQLite async driver (default dev DB, zero-config)
 # asyncpg>=0.29.0              # PostgreSQL async driver (no 3.14 wheel yet — uncomment for production)
 # psycopg2-binary>=2.9.9       # PostgreSQL sync driver (no 3.14 wheel yet — uncomment for production)
-alembic>=1.13.0                # database migrations
+# alembic>=1.13.0               # migrations — add back once the schema stabilizes and someone wires up alembic.ini + versions/; tables are created via Base.metadata.create_all() for now
 
 # ── PDF generation ─────────────────────────────────────────────────────────────
 reportlab>=4.2.0
