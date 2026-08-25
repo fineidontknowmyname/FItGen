@@ -1,22 +1,3 @@
-"""
-core/tdee.py
-------------
-Total Daily Energy Expenditure (TDEE) computation.
-
-Formulae used
-─────────────
-BMR  — Mifflin-St Jeor (1990), ±5 % vs gold-standard DEXA in most populations.
-PAL  — Physical Activity Level factors from FAO/WHO/UNU 2001 report.
-TDEE — BMR × PAL
-
-Calorie adjustment applied on top of TDEE to reach a *goal-specific* daily
-calorie target (deficit for weight-loss, surplus for muscle/strength gain).
-
-Public API
-──────────
-tdee_engine.compute(user_metrics, physical_activity, fitness_goal) -> TDEEResult
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -38,10 +19,6 @@ PAL_MAP: dict[ActivityLevel, float] = {
 }
 
 # ── Goal-based calorie deltas (kcal/day applied to TDEE) ──────────────────────
-# Ranges chosen to be physiologically safe:
-#   weight_loss  → ~500 kcal deficit (≈ 0.5 kg/week loss)
-#   muscle_gain  → ~300 kcal surplus (lean bulk)
-#   strength_gain→ ~200 kcal surplus (smaller surplus, prioritises strength)
 
 GOAL_DELTA: dict[FitnessGoal, float] = {
     FitnessGoal.weight_loss:       -500.0,
@@ -60,19 +37,7 @@ _MIN_CALORIE_TARGET = 1200.0
 
 @dataclass(frozen=True)
 class TDEEResult:
-    """
-    Output of TDEEEngine.compute().
-
-    Attributes
-    ----------
-    bmr                Basal Metabolic Rate in kcal/day.
-    activity_multiplier
-                       PAL factor used (1.20 – 1.90).
-    tdee               Total Daily Energy Expenditure in kcal/day.
-    calorie_target     Goal-adjusted daily target (never below 1 200 kcal).
-    goal_delta         The kcal adjustment applied (negative = deficit).
-    notes              Human-readable explanation of the result.
-    """
+   
     bmr:                 float
     activity_multiplier: float
     tdee:                float
@@ -91,9 +56,6 @@ class TDEEResult:
 class TDEEEngine:
     """
     Compute BMR → TDEE → goal-adjusted calorie target.
-
-    All arithmetic is kept stateless so the singleton instance is safe to
-    share across concurrent async request handlers.
     """
 
     def compute(
@@ -102,18 +64,7 @@ class TDEEEngine:
         physical_activity: PhysicalActivity,
         fitness_goal: FitnessGoal,
     ) -> TDEEResult:
-        """
-        Parameters
-        ----------
-        user_metrics        Age, weight_kg, height_cm, gender.
-        physical_activity   activity_level + physical_activity_hours_per_day.
-        fitness_goal        Determines the calorie delta applied to TDEE.
-
-        Returns
-        -------
-        TDEEResult
-            Full breakdown ready to populate BodyMetrics schema fields.
-        """
+        
         bmr = self._bmr(user_metrics)
         pal = self._pal(physical_activity, user_metrics)
         tdee = bmr * pal
@@ -154,13 +105,7 @@ class TDEEEngine:
         pa: PhysicalActivity,
         m: UserMetrics,
     ) -> float:
-        """
-        Resolve PAL from activity_level enum.
-
-        A micro-bonus (+0.025 per hour of deliberate exercise per day beyond
-        the first 0.5 h) is added on top of the standard PAL to capture users
-        who exercise more than the bracket implies.  Capped at 1.90.
-        """
+       
         base_pal = PAL_MAP.get(pa.activity_level, 1.375)
 
         # Extra exercise bonus: 0.025 per extra hour beyond 0.5 h/day, cap 0.10

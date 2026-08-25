@@ -1,51 +1,3 @@
-"""
-exceptions.py
---------------
-Domain exception hierarchy for Koda.
-
-All application-level errors subclass ``DomainBaseError`` so callers can
-catch them at the appropriate level of granularity:
-
-    except DomainBaseError:          # catch any business-logic error
-    except ValidationError:          # catch only input validation failures
-    except ExternalServiceError:     # catch only third-party failures
-
-FastAPI exception handlers
-───────────────────────────
-Register these in ``main.py`` to return consistent JSON error responses:
-
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
-    from exceptions import DomainBaseError
-
-    @app.exception_handler(DomainBaseError)
-    async def domain_error_handler(request: Request, exc: DomainBaseError):
-        return JSONResponse(
-            status_code=exc.http_status,
-            content={"error": exc.code, "detail": exc.detail},
-        )
-
-Exception taxonomy
-───────────────────
-
-DomainBaseError
-├── ValidationError              — bad input from the caller
-│   ├── AgeOutOfRangeError       — age not in 15–60
-│   ├── InvalidURLError          — malformed YouTube URL
-│   └── ConsentRequiredError     — user hasn't given vision consent
-├── NotFoundError                — requested resource doesn't exist
-│   ├── UserNotFoundError
-│   └── PlanNotFoundError
-├── ExternalServiceError         — third-party call failed
-│   ├── OllamaUnavailableError   — Ollama server unreachable/timeout
-│   ├── TranscriptFetchError     — YouTube transcript unavailable
-│   └── VisionModelError         — MobileNetV2/MediaPipe inference failed
-├── PipelineError                — orchestrator / job failure
-│   ├── PlanGenerationError      — orchestrator pipeline error
-│   └── JobDispatchError         — Celery task dispatch failed
-└── ConfigurationError           — missing or invalid server config
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -56,18 +8,7 @@ from typing import Any
 # ─────────────────────────────────────────────────────────────────────────────
 
 class DomainBaseError(Exception):
-    """
-    Root of the Koda domain exception hierarchy.
-
-    Attributes
-    ----------
-    detail      Human-readable error message (safe to send to clients).
-    code        Machine-readable error code (snake_case string).
-    http_status Default HTTP status code for FastAPI exception handlers.
-    context     Optional dict of additional debugging context (never sent to clients).
-    """
-
-    http_status: int = 500
+       http_status: int = 500
     code: str = "internal_error"
 
     def __init__(

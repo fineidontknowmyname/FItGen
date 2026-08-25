@@ -1,28 +1,3 @@
-"""
-services/intelligence/summarizer.py
--------------------------------------
-Intelligence layer that classifies YouTube video transcripts and extracts
-structured exercise / meal data via the Ollama LLM.
-
-Replaces the old prose-summarizer with three focused methods:
-
-  classify_video(transcript)      -> VideoCategory
-  extract_exercises(transcript)   -> ExerciseLibrary
-  extract_meals(transcript)       -> List[MealItem]
-
-The legacy summarize_content() shim is kept for any callers that haven't
-migrated yet — it now calls classify_video + extract_exercises internally
-and returns a human-readable digest.
-
-Public API
-──────────
-from services.intelligence.summarizer import summarizer_service
-
-category = await summarizer_service.classify_video(text)
-library  = await summarizer_service.extract_exercises(text)
-meals    = await summarizer_service.extract_meals(text)
-"""
-
 from __future__ import annotations
 
 import json
@@ -113,20 +88,11 @@ Transcript:
 # ── Engine ─────────────────────────────────────────────────────────────────────
 
 class SummarizerService:
-    """
-    Structured intelligence extraction from transcript text via Ollama.
-
-    All methods are async and apply the TOKEN_GUARD before building prompts.
-    """
 
     # ── Primary methods ───────────────────────────────────────────────────────
 
     async def classify_video(self, transcript: str) -> VideoCategory:
-        """
-        Ask the LLM to classify a transcript into one of four categories.
-
-        Returns VideoCategory.general on any ambiguity or error.
-        """
+       
         if not transcript:
             return VideoCategory.general
 
@@ -145,13 +111,7 @@ class SummarizerService:
             return VideoCategory.general
 
     async def extract_exercises(self, transcript: str) -> ExerciseLibrary:
-        """
-        Extract structured exercise data from a workout-type transcript.
-
-        Delegates to OllamaClient.extract_exercises() which already contains
-        the JSON-mode prompt; this wrapper applies the shared token guard and
-        adds the structured fallback.
-        """
+       
         if not transcript:
             return ExerciseLibrary(exercises=[])
 
@@ -165,12 +125,7 @@ class SummarizerService:
             return ExerciseLibrary(exercises=[])
 
     async def extract_meals(self, transcript: str) -> List[MealItem]:
-        """
-        Extract meal / food items mentioned in a diet-classified transcript.
-
-        Returns a list of MealItem objects ready for MealSelectorEngine.
-        Returns an empty list on failure or when nothing is found.
-        """
+       
         if not transcript:
             return []
 
@@ -211,14 +166,7 @@ class SummarizerService:
     # ── Legacy shim (backward compat) ─────────────────────────────────────────
 
     async def summarize_content(self, text: str, focus: str = "general") -> str:
-        """
-        Kept for callers that haven't migrated to the structured methods yet.
-
-        Now produces a structured digest:
-          - Classifies the video.
-          - Extracts exercises (if workout) or meals (if diet).
-          - Returns a human-readable text summary.
-        """
+        
         if not text:
             return "No content to summarize."
 

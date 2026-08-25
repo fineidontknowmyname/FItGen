@@ -3,10 +3,7 @@ import re
 
 class YouTubeTranscriptService:
     def extract_video_id(self, url: str) -> str:
-        """
-        Extracts the video ID from a YouTube URL.
-        Supports standard and short URLs.
-        """
+       
         # Regex for standard and short URLs
         regex = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
         match = re.search(regex, url)
@@ -15,10 +12,7 @@ class YouTubeTranscriptService:
         raise ValueError("Invalid YouTube URL")
 
     def fetch_transcript(self, video_url: str) -> str:
-        """
-        Fetches the transcript for a given YouTube video URL.
-        Returns the combined text of the transcript.
-        """
+        
         try:
             video_id = self.extract_video_id(video_url)
             transcript_list = YouTubeTranscriptApi.get_transcript(video_id)

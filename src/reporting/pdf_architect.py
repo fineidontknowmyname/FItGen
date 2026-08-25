@@ -1,25 +1,3 @@
-"""
-reporting/pdf_architect.py
----------------------------
-Renders a ``FitnessPlan`` into a multi-section PDF byte stream using ReportLab.
-
-Sections (in order)
-────────────────────
-  1. Cover page          — plan title, generation date, goal label
-  2. Body Metrics        — BMI, BMR, TDEE, calorie target, macro breakdown table
-                           (only rendered when plan.body_metrics is populated)
-  3. Diet Guidance       — extracted diet notes from video classification
-                           (only rendered when plan.diet_notes is populated)
-  4. Weekly Workout Plan — original per-week exercise tables (unchanged logic)
-
-Design notes
-─────────────
-* All private helpers return a list[Flowable] so render_plan() can assemble
-  the final elements list cleanly and each section is independently testable.
-* Colours use a consistent brand palette defined at module level.
-* A PageBreak separates every major section so each starts on a fresh page.
-"""
-
 from __future__ import annotations
 
 from datetime import date
@@ -762,16 +740,6 @@ class PDFArchitect:
     """Assembles a multi-section FitnessPlan PDF and returns raw bytes."""
 
     def render_plan(self, plan: FitnessPlan) -> bytes:
-        """
-        Render *plan* into PDF bytes.
-
-        Sections included
-        ─────────────────
-        1. Cover page          — always
-        2. Body Metrics        — only when plan.body_metrics is set
-        3. Diet Guidance       — only when plan.diet_notes is set
-        4. Weekly Workout Plan — always
-        """
         buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,

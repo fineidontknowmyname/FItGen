@@ -1,31 +1,3 @@
-"""
-db/session.py
---------------
-SQLAlchemy async engine + session factory.
-
-Uses aiosqlite as the default local driver (zero-config) and PostgreSQL
-(asyncpg) when DATABASE_URL starts with "postgresql".
-
-The module exposes:
-  - ``engine``          — SQLAlchemy async engine
-  - ``AsyncSessionLocal``— async session factory
-  - ``Base``            — declarative base for ORM models
-  - ``get_db()``        — FastAPI dependency yielding a session per request
-  - ``create_all_tables()``— called from main.py startup event
-
-Environment variable
-────────────────────
-  DATABASE_URL   (from .env / config/settings.py)
-
-  Not set / falsy  →  sqlite+aiosqlite:///./koda.db  (default, no setup needed)
-  postgresql://... →  postgresql+asyncpg://...
-
-Schema creation
-───────────────
-Tables are created automatically via ``create_all_tables()`` so you don't
-need to run migrations for the initial SQLite dev setup.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -116,14 +88,7 @@ AsyncSessionLocal = async_sessionmaker(
 # ── FastAPI dependency ─────────────────────────────────────────────────────────
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Yield a SQLAlchemy async session for the duration of a request.
-
-    Usage in an endpoint::
-
-        async def my_endpoint(db: AsyncSession = Depends(get_db)):
-            ...
-    """
+   
     async with AsyncSessionLocal() as session:
         try:
             yield session

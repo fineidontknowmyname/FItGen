@@ -1,45 +1,3 @@
-"""
-services/vision/body_composition.py
---------------------------------------
-MobileNetV2 body composition inference service.
-
-Accepts up to three images of the same person (e.g. front, side, back views)
-and returns a populated BodyComposition Pydantic model.  All expensive
-operations (model inference, OpenCV decode, MediaPipe pose) run in a thread
-pool so the FastAPI event loop is never blocked.
-
-Pipeline for each image
-────────────────────────
-  1. Decode bytes → BGR numpy array (OpenCV)
-  2. Validate size / presence of a person (basic heuristic)
-  3. Run MobileNetV2 feature extraction (via model_registry.body_composition)
-  4. Run MediaPipe pose → RFM body-fat formula + V-taper ratio + posture
-  5. Fuse outputs across all provided images → ensemble average
-
-Multi-image fusion
-───────────────────
-When multiple images are supplied the per-image scalars are averaged and the
-qualitative categories (muscle level, body type) are determined by majority
-vote.  This improves robustness for the common 3-view photography workflow.
-
-Fallback behaviour
-───────────────────
-When TensorFlow / the .keras weights are unavailable, inference falls back
-to landmark-only estimation (RFM + V-taper from MediaPipe), which still
-yields all scalar fields — only the deep-feature-derived categories degrade.
-
-Usage
-─────
-    from services.vision.body_composition import body_composition_service
-
-    result = await body_composition_service.analyze(
-        images=[front_bytes, side_bytes, back_bytes],
-        user_height_cm=178.0,
-        gender="male",
-    )
-    # result is a BodyComposition Pydantic model
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -211,14 +169,7 @@ class _InferenceEngine:
         Optional[float], Optional[float], Optional[str], float,
         float, float, float, SWRCategory,
     ]:
-        """
-        Returns (body_fat_pct, v_taper_ratio, posture_str, landmark_confidence,
-                 shoulder_width_px, waist_width_px, swr, swr_category).
-        Any field is None / default when landmarks are insufficient.
-
-        MediaPipe Pose is opened as a context manager (spec requirement) so
-        all resources are released immediately after this single-image call.
-        """
+     
         _swr_defaults = (0.0, 0.0, 1.1, SWRCategory.BALANCED)
 
         try:
@@ -307,10 +258,7 @@ class _InferenceEngine:
         user_height_cm: float,
         gender: str,
     ) -> _ImageResult:
-        """
-        Process exactly ONE image and return its result.
-        Never raises — validation failures return stub _ImageResult with is_valid=False.
-        """
+        
         r = _ImageResult()
 
         img_bgr = self._decode(image_bytes)
@@ -364,13 +312,7 @@ class _InferenceEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BodyCompositionService:
-    """
-    Async wrapper that accepts 1–3 images and returns a fused BodyComposition.
-
-    All heavy work runs in asyncio.to_thread (non-blocking for the event loop).
-    """
-
-    def __init__(self) -> None:
+       def __init__(self) -> None:
         self._engine = _InferenceEngine()
 
     async def analyze(
@@ -379,21 +321,7 @@ class BodyCompositionService:
         user_height_cm: float = 175.0,
         gender: str = "male",
     ) -> BodyComposition:
-        """
-        Infer body composition from 1–3 images (e.g. front, side, rear).
-
-        Parameters
-        ----------
-        images          List of raw JPEG/PNG byte strings. 1 to 3 images.
-                        Extra images beyond 3 are ignored.
-        user_height_cm  Known height for pixel-to-cm calibration.
-        gender          "male" or "female" — affects RFM constant.
-
-        Returns
-        -------
-        BodyComposition   Pydantic model with all fields populated.
-                          is_valid_person=False when no valid image was decoded.
-        """
+       
         if not images:
             return BodyComposition(is_valid_person=False, confidence=0.0)
 
@@ -424,10 +352,7 @@ class BodyCompositionService:
 
     @staticmethod
     def _fuse(results: List[_ImageResult]) -> BodyComposition:
-        """
-        Ensemble-average scalar fields and majority-vote categorical fields
-        across all valid per-image results.
-        """
+        
         # Scalars — average over images that have the value
         fat_vals    = [r.fat_pct  for r in results if r.fat_pct  is not None]
         vtaper_vals = [r.v_taper  for r in results if r.v_taper  is not None]

@@ -129,9 +129,9 @@ All 3 modes produce a complete PDF. YouTube and photos are entirely optional.
 | Ollama | Latest | Local LLM server (run as tray app on Windows) |
 | Redis | 3.x+ | Celery message broker |
 
-> ⚠️ **Python 3.11 is required.** MediaPipe and TensorFlow do not support Python 3.12+.
+> ! **Python 3.11 is required.** MediaPipe and TensorFlow do not support Python 3.12+.
 
-> ⚠️ **Windows users:** Run Ollama as the desktop tray app. Never run `ollama serve` manually — it will conflict.
+> ! **Windows users:** Run Ollama as the desktop tray app. Never run `ollama serve` manually — it will conflict.
 
 ---
 
@@ -165,7 +165,7 @@ python --version   # must show Python 3.11.x
 pip install -r requirements.txt
 ```
 
-> ⚠️ MediaPipe version matters. If you see import errors, pin exactly:
+> ! MediaPipe version matters. If you see import errors, pin exactly:
 > ```bash
 > pip install mediapipe==0.10.9 "protobuf>=3.11,<4"
 > ```
@@ -238,7 +238,7 @@ cd ..
 
 ## Running the App
 
-> ⚠️ **Windows users: use CMD, not PowerShell.** PYTHONPATH must be set before starting Celery and uvicorn.
+> ! **Windows users: use CMD, not PowerShell.** PYTHONPATH must be set before starting Celery and uvicorn.
 
 ### Quick start (Windows)
 
@@ -477,4 +477,4 @@ fitgen/
 
 ## License
 
-MIT — Genesis Tech
+MIT

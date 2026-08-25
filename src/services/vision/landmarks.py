@@ -1,13 +1,3 @@
-"""
-services/vision/landmarks.py
-------------------------------
-MediaPipe landmark detection for STATIC UPLOADED PHOTOS only.
-No cv2.VideoCapture, no while-loop, no frame-by-frame processing.
-
-Each call processes exactly ONE image, then releases all resources via
-the context manager pattern required by the vision-pipeline spec.
-"""
-
 import math
 
 import cv2
@@ -31,29 +21,9 @@ class Landmark(NamedTuple):
 
 
 class LandmarkDetector:
-    """
-    Detects 33-point MediaPipe pose landmarks from a SINGLE static image.
-
-    Design constraints:
-    - static_image_mode=True   (never treats input as a video stream)
-    - model_complexity=2       (highest accuracy for still photos)
-    - Context manager per call (resources released immediately after each image)
-    - No shared persistent Pose handle — avoids state leakage between uploads
-    """
-
+   
     def detect(self, frame: np.ndarray) -> Optional[List[Landmark]]:
-        """
-        Process a BGR image and return 33 normalised landmarks, or None.
-
-        Parameters
-        ----------
-        frame   BGR numpy array (already decoded by the caller via cv2.imdecode).
-
-        Returns
-        -------
-        List[Landmark] if a person was detected, None otherwise.
-        Never raises — errors are logged and None is returned.
-        """
+        
         try:
             mp_pose = mp.solutions.pose
         except AttributeError:
@@ -84,13 +54,6 @@ class LandmarkDetector:
         ]
 
     def detect_from_bytes(self, image_bytes: bytes) -> Optional[List[Landmark]]:
-        """
-        Convenience wrapper: decode raw bytes then detect.
-
-        Image loading follows the exact required pattern:
-            nparr   = np.frombuffer(img_bytes, np.uint8)
-            img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        """
         nparr   = np.frombuffer(image_bytes, np.uint8)
         img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img_bgr is None:
@@ -107,22 +70,7 @@ def calculate_shoulder_waist_ratio(
     image_width: int,
     image_height: int,
 ) -> Tuple[float, float, float, SWRCategory]:
-    """
-    Compute Shoulder-to-Waist Ratio from MediaPipe pose landmarks.
 
-    Uses landmarks 11/12 (left/right shoulder) and 23/24 (left/right hip,
-    used as a waist proxy) to derive pixel-space widths and their ratio.
-
-    Parameters
-    ----------
-    landmarks      33-element list of normalised Landmark tuples.
-    image_width    Original image width in pixels.
-    image_height   Original image height in pixels.
-
-    Returns
-    -------
-    (shoulder_width_px, waist_width_px, swr, swr_category)
-    """
     l_sh = landmarks[11]   # left shoulder
     r_sh = landmarks[12]   # right shoulder
     l_hp = landmarks[23]   # left hip (waist proxy)

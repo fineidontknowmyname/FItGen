@@ -1,32 +1,3 @@
-"""
-core/protein.py
----------------
-Goal-based protein target, CDC/WHO safety validation, and full macro split.
-
-Protein philosophy
-──────────────────
-The engine uses a *goal-driven g/kg* approach anchored to ISSN (International
-Society of Sports Nutrition) 2017 position paper:
-
-  General fitness / maintenance  : 1.4 g/kg
-  Weight loss (preserve muscle)  : 1.8 g/kg
-  Endurance performance          : 1.6 g/kg
-  Muscle gain / strength gain    : 2.0 g/kg
-
-A capacity-score nudge (0.0 – 0.2 g/kg) is added to reward higher training
-readiness.  The result is then validated against the CDC safe upper intake
-(≈ 3.5 g/kg/day for healthy adults) and a physiological floor (0.8 g/kg).
-
-Macro split (remaining calories after protein is fixed)
-────────────────────────────────────────────────────────
-  Fat  : 25 % of total calorie target  (→ grams = kcal × 0.25 / 9)
-  Carbs: remainder                     (→ grams = leftover kcal / 4)
-
-Public API
-──────────
-protein_engine.compute(weight_kg, fitness_goal, calorie_target, capacity_score)
-    -> MacroResult
-"""
 
 from __future__ import annotations
 
@@ -61,22 +32,7 @@ _FAT_FRACTION       = 0.25    # fat supplies 25 % of total daily calories
 
 @dataclass(frozen=True)
 class MacroResult:
-    """
-    Full macro breakdown produced by ProteinEngine.compute().
-
-    Attributes
-    ----------
-    protein_g_per_kg   Final protein rate used (after CDC clamping + bonus).
-    protein_g          Absolute daily protein target in grams.
-    fat_g              Daily fat target in grams (25 % of calorie_target).
-    carbs_g            Daily carb target in grams (remaining calories).
-    calorie_from_protein  kcal contributed by protein.
-    calorie_from_fat      kcal contributed by fat.
-    calorie_from_carbs    kcal contributed by carbs.
-    cdc_clamped        True when the raw target was reduced to meet CDC ceiling.
-    floor_applied      True when the raw target was raised to meet CDC floor.
-    notes              Human-readable explanation.
-    """
+   
     protein_g_per_kg:      float
     protein_g:             float
     fat_g:                 float
@@ -92,17 +48,7 @@ class MacroResult:
 # ── Engine ─────────────────────────────────────────────────────────────────────
 
 class ProteinEngine:
-    """
-    Derive daily protein and full macro split for a given goal.
-
-    Parameters
-    ----------
-    weight_kg       User's body weight (used for g/kg calculation).
-    fitness_goal    Determines the baseline g/kg target.
-    calorie_target  Goal-adjusted daily calorie target from TDEEEngine.
-    capacity_score  CapacityEngine output [0.50, 1.50]; scales the bonus.
-    """
-
+  
     def compute(
         self,
         weight_kg: float,
@@ -170,10 +116,7 @@ class ProteinEngine:
 
     @staticmethod
     def is_within_cdc_range(protein_g: float, weight_kg: float) -> bool:
-        """
-        Quick boolean check: is the given protein amount within the CDC/WHO
-        safe intake range for this user's body weight?
-        """
+       
         rate = protein_g / max(weight_kg, 1.0)
         return _CDC_FLOOR_G_PER_KG <= rate <= _CDC_CEILING_G_PER_KG
 

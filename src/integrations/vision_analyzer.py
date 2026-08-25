@@ -1,41 +1,3 @@
-"""
-integrations/vision_analyzer.py
----------------------------------
-Unified vision analysis — two independent pipelines, one facade.
-
-  Pipeline A — MediaPipe Pose
-      Skeletal landmark extraction (33 key-points) for per-exercise
-      form scoring and biometric ratio calculation.
-
-  Pipeline B — MobileNetV2 (TensorFlow Keras)
-      Deep visual feature extraction → muscle mass category + posture
-      classification.  Supplements the landmark-derived RFM body-fat
-      and V-taper metrics so no LLM / cloud call is required.
-
-Architecture notes
-──────────────────
-* Both models are lazy-initialised on first use so FastAPI startup is fast.
-* All blocking CV / ML calls are wrapped in asyncio.to_thread so the event
-  loop is never held.
-* Graceful degradation: if mediapipe or tensorflow is absent the code returns
-  a valid (partial) result instead of crashing.
-
-Public async API
-────────────────
-  vision_analyzer.analyze_pose(image_bytes)
-      -> PoseResult
-
-  vision_analyzer.analyze_body_composition(image_bytes, user_height_cm, gender)
-      -> BodyCompositionResult
-
-  vision_analyzer.analyze_form(exercise_type, image_bytes)
-      -> FormResult
-
-Install dependencies
-────────────────────
-  pip install mediapipe opencv-python-headless tensorflow
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -110,14 +72,6 @@ _MIN_CONFIDENCE  = 0.55
 
 
 class PoseAnalyzer:
-    """MediaPipe-based skeletal landmark extractor (static image mode only).
-
-    Design constraints (spec requirements):
-    - static_image_mode=True   — never treats input as a video stream
-    - model_complexity=2       — maximum accuracy for still photos
-    - Context manager per call — resources released after each single image
-    - No shared Pose handle    — eliminates cross-image state leakage
-    """
 
     def run(self, image_bytes: bytes) -> PoseResult:
         """Extract 33 landmarks from one raw image buffer. Processes exactly ONE image."""
@@ -166,10 +120,6 @@ class PoseAnalyzer:
 
     @staticmethod
     def joint_angle(a: Landmark, b: Landmark, c: Landmark) -> float:
-        """
-        Angle at vertex B (rays B→A and B→C) in degrees [0, 180].
-        Equivalent to FitnessEngine.calculate_angle for drop-in use.
-        """
         ba = np.array([a.x - b.x, a.y - b.y])
         bc = np.array([c.x - b.x, c.y - b.y])
         cos_a = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-9)
@@ -193,12 +143,6 @@ _MUSCLE_THRESHOLDS: List[Tuple[float, str]] = [
 
 
 class BodyCompositionAnalyzer:
-    """
-    Two-stage body composition inference:
-
-      1. MediaPipe landmarks → V-taper, RFM body-fat %, posture (rule-based).
-      2. MobileNetV2 global-avg-pool features → muscle mass category.
-    """
 
     def __init__(self, pose_analyzer: PoseAnalyzer) -> None:
         self._pose = pose_analyzer

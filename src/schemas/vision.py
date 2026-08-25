@@ -12,10 +12,7 @@ class SWRCategory(str, Enum):
     ATHLETIC = "athletic"   # swr > 1.2  — strong V-taper
 
 class BodyComposition(BaseModel):
-    """
-    Rich body composition result from Gemini vision analysis.
-    Fat percentage is expressed as a low/high range to reflect visual estimation uncertainty.
-    """
+ 
     # Body fat range estimate
     fat_pct_low: Optional[float] = Field(
         None, ge=2.0, le=60.0,

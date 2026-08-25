@@ -10,14 +10,6 @@ class SafetyFilterEngine:
         safe_list = []
         
         for exercise in exercises:
-            # 1. Equipment Check
-            # If exercise needs specific equipment, user MUST have it.
-            # If user has 'machine', they have access to standard machines.
-            # Logic: All items in exercise.equipment_needed must be in available_equipment
-            # But usually, it means "needs at least one of these". 
-            # Let's assume strict matching: Exercise needs X, do you have X?
-            # Actually, most exercises list "alternatives". But our schema says "equipment_needed: List[Equipment]".
-            # Let's interpret as "Requires ALL of these".
             
             missing_equipment = [
                 eq for eq in exercise.equipment_needed 

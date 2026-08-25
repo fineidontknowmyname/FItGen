@@ -1,31 +1,3 @@
-"""
-core/default_exercises.py
---------------------------
-Static exercise library used as a fallback when no YouTube URLs are provided
-(Mode A — profile-only plan generation).
-
-The library contains 50 exercises spanning all major muscle groups, equipment
-tiers, difficulty levels, and fitness goals.  Every entry is a fully-typed
-``Exercise`` schema object, so it passes directly through the existing:
-  • SafetyFilterEngine  (injury + equipment gate)
-  • ExerciseScorer      (goal / difficulty / equipment ranking)
-  • Scheduler           (Mon / Wed / Fri distribution)
-
-Public API
-──────────
-get_default_exercises(
-    goal:             FitnessGoal,
-    equipment:        List[Equipment],
-    experience_level: ExperienceLevel,
-    injuries:         List[Injury] = [],
-    top_n:            int          = 25,
-) -> List[Exercise]
-
-The function filters the master library by available equipment and safe
-muscle groups, scores against the user's goal/level, and returns the top N
-exercises ready for the scheduler.
-"""
-
 from __future__ import annotations
 
 from typing import List
@@ -852,28 +824,7 @@ def get_default_exercises(
     injuries: List[Injury] | None = None,
     top_n: int = 25,
 ) -> List[Exercise]:
-    """
-    Return the top ``top_n`` exercises from the built-in library suited to the
-    user's goal, available equipment, experience level, and injury profile.
-
-    The function:
-    1. Filters to exercises achievable with the user's equipment.
-    2. Applies a lightweight injury exclusion (shoulder/wrist/knee/back/ankle).
-    3. Scores each remaining exercise using the existing ``ExerciseScorer``.
-    4. Returns the top N exercises sorted by score (best-first).
-
-    Parameters
-    ----------
-    goal              User's fitness goal (used for goal-alignment scoring).
-    equipment         List of equipment the user has access to.
-    experience_level  User's experience level (difficulty matching).
-    injuries          Optional list of injuries to exclude unsafe exercises.
-    top_n             Maximum exercises to return (default 25).
-
-    Returns
-    -------
-    List[Exercise] — ready for the SafetyFilterEngine + Scheduler.
-    """
+   
     from core.exercise_scorer import exercise_scorer
     from schemas.user import UserProfile, UserMetrics, StrengthMetrics
     from schemas.common import Gender
