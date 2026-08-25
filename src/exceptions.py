@@ -8,7 +8,7 @@ from typing import Any
 # ─────────────────────────────────────────────────────────────────────────────
 
 class DomainBaseError(Exception):
-       http_status: int = 500
+    http_status: int = 500
     code: str = "internal_error"
 
     def __init__(

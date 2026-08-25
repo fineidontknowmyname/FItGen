@@ -15,11 +15,12 @@ collide with broker queues (0).
 
 Worker startup
 ───────────────
-    # From project root (koda/) — set PYTHONPATH so bare imports resolve:
-    $env:PYTHONPATH="src"; celery -A workers.celery_app worker --loglevel=info --pool=solo
+    # Requires `pip install -e .` once (see pyproject.toml) — after that,
+    # bare imports resolve from any directory, no PYTHONPATH needed:
+    celery -A workers.celery_app worker --loglevel=info --pool=solo
 
     # With flower dashboard:
-    $env:PYTHONPATH="src"; celery -A workers.celery_app flower
+    celery -A workers.celery_app flower
 
 Task routing
 ─────────────

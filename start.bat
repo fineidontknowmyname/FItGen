@@ -28,17 +28,19 @@ if %errorlevel% == 0 (
     timeout /t 4 /nobreak >nul
 )
 
+REM ── Ensure the package is installed in editable mode (no-op if already installed)
+call venv\Scripts\activate.bat
+pip show fitgen-koda >nul 2>&1 || pip install -e . -q
+
 REM ── Build temp helper scripts (avoids nested-quote issues with spaces in path)
 echo @echo off                                                      > "%TEMP%\koda_fastapi.bat"
 echo cd /d "D:\Genesis tech\Github repo\koda"                     >> "%TEMP%\koda_fastapi.bat"
 echo call venv\Scripts\activate.bat                                >> "%TEMP%\koda_fastapi.bat"
-echo set PYTHONPATH=src                                            >> "%TEMP%\koda_fastapi.bat"
-echo uvicorn src.main:app --reload --port 8000 --reload-dir src   >> "%TEMP%\koda_fastapi.bat"
+echo uvicorn main:app --reload --port 8000 --reload-dir src        >> "%TEMP%\koda_fastapi.bat"
 
 echo @echo off                                                      > "%TEMP%\koda_celery.bat"
 echo cd /d "D:\Genesis tech\Github repo\koda"                     >> "%TEMP%\koda_celery.bat"
 echo call venv\Scripts\activate.bat                                >> "%TEMP%\koda_celery.bat"
-echo set PYTHONPATH=src                                            >> "%TEMP%\koda_celery.bat"
 echo python -m celery -A workers.celery_app worker --loglevel=info --pool=solo >> "%TEMP%\koda_celery.bat"
 
 echo @echo off                                                      > "%TEMP%\koda_frontend.bat"

@@ -1,13 +1,8 @@
-import sys
-import os
 import numpy as np
 import cv2
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from src.services.vision.landmarks import landmark_detector, Landmark
-from src.services.fitness.engine import fitness_engine
+from services.vision.landmarks import landmark_detector, Landmark
+from services.fitness.engine import fitness_engine
 
 def verify_vision():
     print("--- Verifying Vision Services ---")

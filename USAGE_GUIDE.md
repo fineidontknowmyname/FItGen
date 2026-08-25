@@ -157,7 +157,7 @@ FitGen is a local AI-powered fitness plan generator built with:
 - SQLAlchemy 2.0 + SQLite database
 - Pydantic v2 for validation
 
-The project uses PYTHONPATH=src convention. All imports use bare module names
+`src/` is installed as an editable package (`pip install -e .`, see `pyproject.toml`), so all imports use bare module names from anywhere — no `PYTHONPATH` needed
 (e.g. `from core.orchestrator import ...` not `from src.core.orchestrator import ...`).
 
 The main flow is:
@@ -294,7 +294,7 @@ Using the FitGen context above, review this file for me:
 [PASTE FILE CONTENTS]
 
 Look for:
-- Any logic that contradicts the project's PYTHONPATH=src import convention
+- Any `src.`-prefixed import (the package is installed via `pip install -e .`; bare imports only)
 - Pydantic v2 compatibility issues
 - Async/sync mismatches (FastAPI async endpoints calling sync functions)
 - Any hardcoded values that should be in config/settings.py

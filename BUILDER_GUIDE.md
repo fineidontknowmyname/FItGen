@@ -186,7 +186,7 @@ OLLAMA_MODEL=gemma3:4b
 
 Or override temporarily at startup:
 ```bash
-OLLAMA_MODEL=mistral:7b uvicorn src.main:app --reload --port 8000 --reload-dir src
+OLLAMA_MODEL=mistral:7b uvicorn main:app --reload --port 8000 --reload-dir src
 ```
 
 After switching, test with a short YouTube URL first to confirm the model returns parseable JSON.
@@ -228,15 +228,13 @@ JSON only:"""
 ### Environment Setup
 
 ```cmd
-# Windows CMD only — not PowerShell
 cd "D:\path\to\koda"
 py -3.11 -m venv venv
 venv\Scripts\activate.bat
-pip install -r requirements.txt
-
-# Must be set before every Celery/uvicorn run
-set PYTHONPATH=src
+pip install -e .
 ```
+
+`pip install -e .` (see `pyproject.toml`) installs the dependencies from `requirements.txt` and registers the `src/` packages for import from anywhere. This is a one-time step per venv — no `PYTHONPATH` needed afterward, on any shell, from any working directory.
 
 Verify MediaPipe:
 ```cmd
@@ -254,14 +252,14 @@ print('MediaPipe OK')
 
 ### Running Services
 
-Each in its own CMD terminal with venv activated and `set PYTHONPATH=src`:
+Each in its own terminal with venv activated:
 
 ```cmd
 # Terminal 1 — Celery worker
 python -m celery -A workers.celery_app worker --loglevel=info --pool=solo
 
 # Terminal 2 — FastAPI
-uvicorn src.main:app --reload --port 8000 --reload-dir src
+uvicorn main:app --reload --port 8000 --reload-dir src
 
 # Terminal 3 — Frontend
 cd frontend && npm run dev
@@ -281,31 +279,34 @@ All should return `{"status": "ok"}`.
 
 ---
 
-### Import Convention — CRITICAL
+### Import Convention
 
-FitGen uses `PYTHONPATH=src`. All imports are bare — no `src.` prefix:
+`src/` is registered as an installable package (`pyproject.toml`, `pip install -e .`), so every top-level directory under it (`db`, `core`, `schemas`, `api`, `workers`, ...) is importable by its bare name from anywhere — no `PYTHONPATH`, no `src.` prefix, no dependence on your current working directory or how you launched the process:
 
 ```python
-# ✅ Correct
+# ✅ Correct — works everywhere, always
 from core.orchestrator import build_plan
 from config.settings import settings
 from db.session import get_db
 from workers.celery_app import celery_app
 
-# ❌ Wrong — will break
+# ❌ Wrong — the src/ directory is not itself a package
 from src.core.orchestrator import build_plan
 ```
+
+`main.py` and `exceptions.py` are registered the same way (`py-modules` in `pyproject.toml`), so `main:app` resolves directly too — no `src.main:app`.
 
 Celery invocation:
 ```cmd
 python -m celery -A workers.celery_app worker ...
-# NOT: celery -A src.workers.celery_app — this will fail
 ```
 
-Uvicorn is the only exception — needs `src.` prefix:
+Uvicorn:
 ```cmd
-uvicorn src.main:app ...
+uvicorn main:app ...
 ```
+
+If you add a new top-level directory under `src/`, give it an `__init__.py` (regular package, matching every other directory here) so `pip install -e .`'s package discovery (`tool.setuptools.packages.find`, `where = ["src"]`) picks it up — otherwise it silently won't be importable outside `src/` itself.
 
 ---
 
@@ -341,7 +342,7 @@ api_router.include_router(yourmodule.router, prefix="/yourmodule", tags=["yourmo
 | MediaPipe 0.10.9 pinned | 0.10.14+ removed `mp.solutions` API. 0.10.9 is the last stable version with it. |
 | `protobuf>=3.11,<4` pinned | MediaPipe 0.10.9 incompatible with protobuf 4.x. Must be pinned. |
 | `static_image_mode=True` | We process single photos not video. Static mode re-initialises per image — correct for this use case. |
-| `PYTHONPATH=src` | Keeps imports clean. Avoids deeply nested `src.src.module` paths across the project. |
+| `pip install -e .` (`pyproject.toml`) | Registers `src/`'s packages for import from anywhere, without `PYTHONPATH` or a `src.` prefix, regardless of launch method. |
 | `--pool=solo` for Celery | Windows doesn't support the default `prefork` pool. Solo runs single-threaded — fine for local use. |
 
 ---
@@ -352,9 +353,9 @@ api_router.include_router(yourmodule.router, prefix="/yourmodule", tags=["yourmo
 |---|---|
 | `mediapipe has no attribute 'solutions'` | Wrong version. Run: `pip install mediapipe==0.10.9 "protobuf>=3.11,<4"` |
 | `Cannot import runtime_version from google.protobuf` | TensorFlow/protobuf conflict. Uninstall tensorflow, reinstall mediapipe==0.10.9 |
-| Celery not picking up jobs | Check `redis-cli ping` returns PONG. Check `set PYTHONPATH=src` is set. |
+| Celery not picking up jobs | Check `redis-cli ping` returns PONG. Check `pip show fitgen-koda` succeeds in the active venv (i.e. `pip install -e .` was run). |
 | `422 Field required` on vision endpoint | Axios default `Content-Type: application/json` breaks multipart. Use bare `axios.post()` not the api instance for file uploads. |
 | Ollama times out | Model too large for RAM. Switch to smaller model in `.env`. |
 | PDF encoding issues (`â€"` instead of `—`) | Use unicode directly in ReportLab strings: `\u2014` |
-| `set PYTHONPATH=src` not working | You're in PowerShell. Use CMD. PowerShell syntax is `$env:PYTHONPATH = "src"`. |
+| `ModuleNotFoundError` for `db`/`core`/etc. | `pip install -e .` hasn't been run in this venv. Run it once — no PYTHONPATH workaround needed afterward, on any shell. |
 | Ollama port conflict on Windows | Don't run `ollama serve` — tray app already serves it. Kill duplicate in Task Manager. |

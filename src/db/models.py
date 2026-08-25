@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from src.db.base import Base
+from db.base import Base
 
 # ── User account record ────────────────────────────────────────────────────────
 

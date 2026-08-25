@@ -1,13 +1,8 @@
-import sys
-import os
 import numpy as np
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from src.services.fitness.engine import fitness_engine
-from src.services.vision.landmarks import Landmark
-from src.schemas.user import UserProfile, UserMetrics, Gender, StrengthMetrics, ExperienceLevel, FitnessGoal
+from services.fitness.engine import fitness_engine
+from services.vision.landmarks import Landmark
+from schemas.user import UserProfile, UserMetrics, Gender, StrengthMetrics, ExperienceLevel, FitnessGoal
 
 def verify_biometrics():
     print("--- Verifying Biometric Extraction ---")

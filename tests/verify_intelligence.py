@@ -1,12 +1,7 @@
 import asyncio
-import sys
-import os
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from src.services.intelligence.youtube import youtube_service
-from src.services.intelligence.summarizer import summarizer_service
+from services.intelligence.youtube import youtube_service
+from services.intelligence.summarizer import summarizer_service
 
 async def main():
     print("--- Verifying YouTube Service ---")

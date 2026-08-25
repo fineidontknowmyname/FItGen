@@ -162,8 +162,10 @@ python --version   # must show Python 3.11.x
 ### 3. Install backend dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
+
+This installs the dependencies from `requirements.txt` and registers the `src/` packages (`db`, `core`, `schemas`, `api`, ...) for import from anywhere — no `PYTHONPATH` needed, ever, regardless of your working directory or how you launch the app.
 
 > ! MediaPipe version matters. If you see import errors, pin exactly:
 > ```bash
@@ -238,8 +240,6 @@ cd ..
 
 ## Running the App
 
-> ! **Windows users: use CMD, not PowerShell.** PYTHONPATH must be set before starting Celery and uvicorn.
-
 ### Quick start (Windows)
 
 Double-click `start.bat` in the project root. It opens all required terminals and launches the browser automatically.
@@ -248,11 +248,10 @@ To stop everything: double-click `stop.bat`.
 
 ### Manual start
 
-Open **3 terminals** from the project root, all in CMD with venv activated:
+Open **3 terminals** from the project root, all with venv activated:
 
 ```cmd
 venv\Scripts\activate.bat
-set PYTHONPATH=src
 ```
 
 **Terminal 1 — Celery worker:**
@@ -262,7 +261,7 @@ python -m celery -A workers.celery_app worker --loglevel=info --pool=solo
 
 **Terminal 2 — FastAPI backend:**
 ```cmd
-uvicorn src.main:app --reload --port 8000 --reload-dir src
+uvicorn main:app --reload --port 8000 --reload-dir src
 ```
 
 **Terminal 3 — Frontend:**
