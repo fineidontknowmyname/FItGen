@@ -294,6 +294,26 @@ Requires [uv](https://github.com/astral-sh/uv) (`pip install uv`, or see their i
 
 ---
 
+## Testing
+
+**Backend** (`pytest`, real assertions — see `tests/`, config in `pyproject.toml`):
+```bash
+pytest tests/ -v
+```
+Tests that need a live external service (Redis/Celery broker, Ollama) skip gracefully rather than fail when that service isn't reachable — everything else runs fully offline against on-device inference (MediaPipe/TensorFlow) and pure calculation logic.
+
+**Frontend** (`vitest`, currently covering the onboarding → dashboard payload-building logic — exactly where past payload-drift bugs lived, see `frontend/src/lib/profilePayload.ts`):
+```bash
+cd frontend
+npm test        # vitest
+npm run lint     # eslint
+npm run build    # production build / type-check
+```
+
+**CI**: `.github/workflows/ci.yml` runs both suites (plus frontend lint + build) on every push/PR to `main`.
+
+---
+
 ## API Reference
 
 ### Plans
@@ -484,14 +504,15 @@ fitgen/
 
 ## Roadmap
 
-- [ ] JWT authentication + bcrypt password hashing
+- [x] JWT authentication + bcrypt password hashing
 - [ ] Train MobileNetV2 body composition classifier on real dataset
 - [ ] In-app plan viewer (currently PDF-only)
 - [ ] Docker + docker-compose for one-command setup
 - [ ] PATCH endpoint for partial profile updates
 - [ ] Rate limiting on plan generation
 - [ ] Celery Flower monitoring dashboard
-- [ ] Mac/Linux testing + CI
+- [x] CI (GitHub Actions: pytest + frontend lint/test/build, Linux runner)
+- [ ] Mac testing (Windows + Linux CI covered; Mac untested)
 
 ---
 

@@ -282,6 +282,17 @@ All should return `{"status": "ok"}`.
 
 ---
 
+### Running Tests
+
+```bash
+pytest tests/ -v                    # backend
+cd frontend && npm test && npm run lint   # frontend
+```
+
+CI (`.github/workflows/ci.yml`) runs both on every push/PR to `main`. Backend tests that need Redis/Celery or Ollama skip gracefully (`pytest.skip`) rather than fail when that service isn't running locally.
+
+---
+
 ### Import Convention
 
 `src/` is registered as an installable package (`pyproject.toml`, `pip install -e .`), so every top-level directory under it (`db`, `core`, `schemas`, `api`, `workers`, ...) is importable by its bare name from anywhere — no `PYTHONPATH`, no `src.` prefix, no dependence on your current working directory or how you launched the process:

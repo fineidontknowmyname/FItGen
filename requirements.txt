@@ -41,3 +41,7 @@ PyJWT>=2.9.0                   # JWT access token signing/verification
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-Levenshtein>=0.25.0     # fast string similarity (exercise name matching)
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
