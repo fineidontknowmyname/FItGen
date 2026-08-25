@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, CheckCircle2, XCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useJobStatus } from '@/hooks/useJobStatus';
@@ -81,22 +82,36 @@ export default function JobStatusPoller({ jobId, onReset }: Props) {
             {/* Progress bar */}
             <div className="space-y-2">
                 <div className="flex justify-between text-xs text-zinc-400">
-                    <span>
+                    <motion.span
+                        key={status ?? 'waiting'}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
                         {status === 'done' ? 'Complete!' :
                             status === 'failed' ? 'Failed' :
                                 isPolling ? `Processing… (${pollCount} checks)` :
                                     'Waiting…'}
-                    </span>
+                    </motion.span>
                     <span>{progress}%</span>
                 </div>
-                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full rounded-full transition-all duration-700 ease-in-out ${status === 'failed'
+                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden relative">
+                    <motion.div
+                        className={`h-full rounded-full ${status === 'failed'
                             ? 'bg-red-500'
                             : 'bg-gradient-to-r from-yellow-500 to-yellow-400'
                             }`}
-                        style={{ width: `${progress}%` }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ type: 'spring', stiffness: 80, damping: 20 }}
                     />
+                    {!isTerminal && isPolling && (
+                        <motion.div
+                            className="absolute inset-y-0 left-0 w-1/3 bg-white/20 rounded-full"
+                            animate={{ x: ['-100%', '300%'] }}
+                            transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -112,13 +127,22 @@ export default function JobStatusPoller({ jobId, onReset }: Props) {
                         <li key={step.label} className="flex items-center gap-3 text-sm">
                             <span className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold ${failed ? 'bg-red-500/20 text-red-400' :
                                 done ? 'bg-yellow-500/20 text-yellow-400' :
-                                    current ? 'bg-zinc-700 text-white animate-pulse' :
+                                    current ? 'bg-zinc-700 text-white' :
                                         'bg-zinc-800 text-zinc-500'
                                 }`}>
-                                {failed ? '✕' :
-                                    done ? '✓' :
-                                        current ? '…' :
-                                            i + 1}
+                                <AnimatePresence mode="wait" initial={false}>
+                                    <motion.span
+                                        key={failed ? 'failed' : done ? 'done' : current ? 'current' : 'pending'}
+                                        initial={{ scale: 0, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                    >
+                                        {failed ? '✕' :
+                                            done ? '✓' :
+                                                current ? '…' :
+                                                    i + 1}
+                                    </motion.span>
+                                </AnimatePresence>
                             </span>
                             <span className={`${done ? 'text-zinc-300' : current ? 'text-white' : 'text-zinc-500'}`}>
                                 {step.label}
@@ -132,41 +156,61 @@ export default function JobStatusPoller({ jobId, onReset }: Props) {
             </ol>
 
             {/* Terminal state actions */}
-            {status === 'done' && (
-                <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                        <CheckCircle2 className="w-5 h-5" />
-                        Your plan is ready!
-                    </div>
-                    <Button
-                        size="lg"
-                        className="w-full gap-2 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
-                        onClick={handleDownload}
+            <AnimatePresence mode="wait">
+                {status === 'done' && (
+                    <motion.div
+                        key="done"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-3 pt-2"
                     >
-                        <Download className="w-4 h-4" />
-                        Download PDF Plan
-                    </Button>
-                    {onReset && (
-                        <Button variant="ghost" size="sm" className="w-full text-zinc-400" onClick={() => { stop(); onReset(); }}>
-                            Generate Another
+                        <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+                            <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+                            >
+                                <CheckCircle2 className="w-5 h-5" />
+                            </motion.span>
+                            Your plan is ready!
+                        </div>
+                        <Button
+                            size="lg"
+                            className="w-full gap-2 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
+                            onClick={handleDownload}
+                        >
+                            <Download className="w-4 h-4" />
+                            Download PDF Plan
                         </Button>
-                    )}
-                </div>
-            )}
+                        {onReset && (
+                            <Button variant="ghost" size="sm" className="w-full text-zinc-400" onClick={() => { stop(); onReset(); }}>
+                                Generate Another
+                            </Button>
+                        )}
+                    </motion.div>
+                )}
 
-            {status === 'failed' && (
-                <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2 text-red-400 text-sm">
-                        <XCircle className="w-5 h-5" />
-                        <span>{error ?? 'An error occurred during plan generation.'}</span>
-                    </div>
-                    {onReset && (
-                        <Button variant="outline" size="sm" className="w-full" onClick={() => { stop(); onReset(); }}>
-                            Try Again
-                        </Button>
-                    )}
-                </div>
-            )}
+                {status === 'failed' && (
+                    <motion.div
+                        key="failed"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-3 pt-2"
+                    >
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                            <XCircle className="w-5 h-5" />
+                            <span>{error ?? 'An error occurred during plan generation.'}</span>
+                        </div>
+                        {onReset && (
+                            <Button variant="outline" size="sm" className="w-full" onClick={() => { stop(); onReset(); }}>
+                                Try Again
+                            </Button>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -31,7 +31,7 @@ describe('buildProfilePayload', () => {
 
         const payload = buildProfilePayload(user);
 
-        expect(payload.physical_activity.physical_activity_hours_per_day).toBe(0.5);
+        expect(payload.physical_activity?.physical_activity_hours_per_day).toBe(0.5);
     });
 
     it('defaults equipment to bodyweight-only when the user selected nothing', () => {

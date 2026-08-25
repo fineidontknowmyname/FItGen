@@ -30,7 +30,7 @@ export default function Header() {
             className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-black/80 backdrop-blur-md border-b border-white/10"
         >
             <Link href="/" className="flex items-center gap-2">
-                <span className="text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
+                <span className="font-heading text-2xl font-semibold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
                     FITGEN
                 </span>
             </Link>

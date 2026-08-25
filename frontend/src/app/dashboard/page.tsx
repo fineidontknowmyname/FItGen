@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
@@ -153,7 +154,7 @@ export default function DashboardPage() {
                 {/* Title row */}
                 <div className="flex flex-col md:flex-row gap-8 items-start justify-between mb-12">
                     <div>
-                        <h1 className="text-3xl font-bold mb-2">My Dashboard</h1>
+                        <h1 className="font-heading text-3xl font-semibold mb-2">My Dashboard</h1>
                         <p className={textMuted}>
                             {loading ? (
                                 <span className={`inline-block w-48 h-5 ${barBg} rounded animate-pulse`} />
@@ -400,7 +401,7 @@ function StatRow({ label, value, muted }: { label: string; value: string; muted:
     return (
         <div className="flex justify-between items-center text-sm">
             <span className={muted}>{label}</span>
-            <span className="font-medium">{value}</span>
+            <span className="font-heading font-semibold text-base">{value}</span>
         </div>
     );
 }
@@ -414,7 +415,12 @@ function ProgressBar({ label, current, max, barBg }: { label: string; current: n
                 <span className="opacity-60">{current}/{max}</span>
             </div>
             <div className={`h-1.5 ${barBg} rounded-full overflow-hidden`}>
-                <div className="h-full bg-yellow-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                <motion.div
+                    className="h-full bg-yellow-500 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ type: 'spring', stiffness: 60, damping: 15, delay: 0.1 }}
+                />
             </div>
         </div>
     );

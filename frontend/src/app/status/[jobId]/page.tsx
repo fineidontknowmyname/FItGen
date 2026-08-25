@@ -27,7 +27,7 @@ export default function JobStatusPage({ params }: Props) {
                 </button>
 
                 <div className="mb-8">
-                    <h1 className="text-2xl font-bold mb-1">Plan Generation</h1>
+                    <h1 className="font-heading text-2xl font-semibold mb-1">Plan Generation</h1>
                     <p className="text-zinc-400 text-sm">
                         Job ID: <code className="text-yellow-500 font-mono">{jobId}</code>
                     </p>

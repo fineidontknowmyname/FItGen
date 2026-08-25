@@ -24,7 +24,7 @@ export default function LandingPage() {
           <span className="px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-xs font-semibold tracking-wide border border-yellow-500/20 mb-6 inline-block">
             AI-POWERED FITNESS REVOLUTION
           </span>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 max-w-4xl mx-auto leading-[1.1]">
+          <h1 className="font-heading text-5xl md:text-7xl font-semibold tracking-tight mb-6 max-w-4xl mx-auto leading-[1.1]">
             Your Personal Trainer <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-500">
               Is Now Artificial Intelligence

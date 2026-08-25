@@ -183,7 +183,7 @@ export default function OnboardingPage() {
                 {/* Progress */}
                 <div className="mb-12">
                     <span className="text-yellow-500 font-medium text-sm block mb-1">Step {step + 1} of {STEPS.length}</span>
-                    <h1 className="text-2xl font-bold">{STEPS[step].title}</h1>
+                    <h1 className="font-heading text-2xl font-semibold">{STEPS[step].title}</h1>
                     <p className="text-zinc-400 mt-1">{STEPS[step].description}</p>
                     <div className="h-1 w-full bg-zinc-900 rounded-full overflow-hidden mt-4">
                         <motion.div className="h-full bg-yellow-500"

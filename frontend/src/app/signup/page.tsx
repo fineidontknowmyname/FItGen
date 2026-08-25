@@ -88,7 +88,7 @@ export default function SignupPage() {
             <main className="flex-1 flex items-center justify-center px-6 pt-20">
                 <div className="w-full max-w-md p-8 rounded-2xl bg-zinc-900/50 border border-white/5">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold mb-2">Create Account</h1>
+                        <h1 className="font-heading text-3xl font-semibold mb-2">Create Account</h1>
                         <p className="text-zinc-400">Join the fitness revolution</p>
                     </div>
 
